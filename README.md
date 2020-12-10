@@ -1,29 +1,18 @@
-# README #
+# Title here #
 
-This README would normally document whatever steps are necessary to get your application up and running.
+### Description ###
 
-### What is this repository for? ###
+Description here
 
-* Quick summary
-* Version
-* [Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
+### Set up environment ###
 
-### How do I get set up? ###
-
-* Summary of set up
-* Configuration
-* Dependencies
-* Database configuration
-* How to run tests
-* Deployment instructions
-
-### Contribution guidelines ###
-
-* Writing tests
-* Code review
-* Other guidelines
-
-### Who do I talk to? ###
-
-* Repo owner or admin
-* Other community or team contact
+1. Install python 3.8.3
+>macOS [64-bit](https://www.python.org/ftp/python/3.8.3/python-3.8.3-macosx10.9.pkg)  
+>Windows [32-bit](https://www.python.org/ftp/python/3.8.3/python-3.8.3-webinstall.exe) [64-bit](https://www.python.org/ftp/python/3.8.3/python-3.8.3-amd64-webinstall.exe)
+2. Install PyQt5
+>pip install PyQt5
+3. Install Qt Designer (you can install Qt Designer alone or Qt Creator)
+>* Qt Designer(unofficial) [here](https://build-system.fman.io/qt-designer-download)
+>* Qt Creator(official) [here](https://www.qt.io/download-open-source)  
+![Installation setting](https://puu.sh/GW277/f787f9f9be.png){width=600}
+4. Install your favourite IDE, e.g. VSCode, PyCharm, etc...
