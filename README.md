@@ -1,4 +1,4 @@
-# Title here #
+# Coupled Filtering #
 
 ### Description ###
 
@@ -23,14 +23,5 @@ Description here
 1. Install NumPy
 >pip install numpy==1.19.3
 
-* Writing tests
-* Code review
-* Other guidelines
-
-### Who do I talk to? ###
-
-* Repo owner or admin
-* Other community or team contact
-
-test
-4. Install your favourite IDE, e.g. VSCode, PyCharm, etc...
+#### Refrences ###
+1. T.Z. Liang, L.S. Yung and W.C. Yu, “On Feature Motion Decorrelation in Ultrasound Speckle Tracking,” in IEEE Transactions on Medical Imaging, vol. 32(2), 2013, pp. 435-448.
