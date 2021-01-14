@@ -44,8 +44,8 @@ class Algorithm:
             self.t_opt[y, x] = [[0, 0]]
 
     def window_correlation(self, X1, X2, start, length):
-        X1 = X1[start[0]:start[0] + length, start[1] + length]
-        X2 = X2[start[0]:start[0] + length, start[1] + length]
+        X1 = X1[start[0]:start[0] + length, start[1]:start[1] + length] # Kevin corrected the sec para (From start[1] + length --> start[1]:start[1] + length)
+        X2 = X2[start[0]:start[0] + length, start[1]:start[1] + length] # Kevin corrected the sec para (From start[1] + length --> start[1]:start[1] + length)
         sum_of_multiple = np.sum(X1 * X2)
         sqrt_of_multiple = np.sqrt(np.sum(np.square(X1)) * np.sum(np.square(X2)))
         return sum_of_multiple / sqrt_of_multiple
