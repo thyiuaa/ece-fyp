@@ -19,7 +19,10 @@ Description here
 >* Qt Creator(official) [here](https://www.qt.io/download-open-source)  
 ![Installation setting](https://puu.sh/GW277/f787f9f9be.png){width=600}
 Notes:
-    The Rnage of M and T are a number that is < 1. T should be a factor that will be multiplied to the image size.The step of M < Range of M and < 1, while Step of T should be an integer and > 1. The input format for all parameters are *text. Assuming the range of axial and lateral strain and shear are the same, so as the interval.
+1. The Rnage of M and T are a number that is < 1. T should be a factor that will be multiplied to the image size.
+2. The step of M < Range of M and < 1, while Step of T should be an integer and > 1. 
+3. The input format for all parameters are *text. Assuming the range of axial and lateral strain and shear are the same, so as the interval.
+4. The input file has to be .dat format
 
 
 
