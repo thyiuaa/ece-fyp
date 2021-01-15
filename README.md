@@ -18,6 +18,10 @@ Description here
 >* Qt Designer(unofficial) [here](https://build-system.fman.io/qt-designer-download)
 >* Qt Creator(official) [here](https://www.qt.io/download-open-source)  
 ![Installation setting](https://puu.sh/GW277/f787f9f9be.png){width=600}
+Notes:
+    The Rnage of M and T are a number that is < 1. T should be a factor that will be multiplied to the image size.The step of M < Range of M and < 1, while Step of T should be an integer and > 1. The input format for all parameters are *text. Assuming the range of axial and lateral strain and shear are the same, so as the interval.
+
+
 
 #### for Algorithm ####
 1. Install NumPy
