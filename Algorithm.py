@@ -44,8 +44,8 @@ class Algorithm:
             self.t_opt[y, x] = [[0, 0]]
 
     def window_correlation(self, X1, X2, start, length):
-        X1 = X1[start[0]:start[0] + length, start[1]:start[1] + length] # Kevin corrected the sec para (From start[1] + length --> start[1]:start[1] + length)
-        X2 = X2[start[0]:start[0] + length, start[1]:start[1] + length] # Kevin corrected the sec para (From start[1] + length --> start[1]:start[1] + length)
+        X1 = X1[start[0]:start[0] + length, start[1]:start[1] + length] 
+        X2 = X2[start[0]:start[0] + length, start[1]:start[1] + length] 
         sum_of_multiple = np.sum(X1 * X2)
         sqrt_of_multiple = np.sqrt(np.sum(np.square(X1)) * np.sum(np.square(X2)))
         return sum_of_multiple / sqrt_of_multiple
@@ -108,8 +108,7 @@ class Algorithm:
                     processed_pre = cf.apply(self.pre_img, aw.affine_warping(self.psf, Mw, np.array([0, 0])))
                     for Tw in t_scale:
                         processed_post = cf.apply(aw.affine_warping(self.post_img, Mw, Tw), self.psf)
-                        window_correlation = self.window_correlation(processed_pre, processed_post, [y, x],
-                                                                     window_length)
+                        window_correlation = self.window_correlation(processed_pre, processed_post, [y, x], window_length)
                         self.store_opt_params(y, x, window_correlation, Mw, Tw)
 
         self.run(scale + 1)
