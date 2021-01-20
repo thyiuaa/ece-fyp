@@ -37,6 +37,7 @@ class Algorithm:
         self.t_opt = np.empty(self.pre_img.shape)
         self.c_opt = np.full(self.pre_img.shape, -2)
         self.MIN_WINDOW_LENGTH = 2
+        self.c_mean = []
 
         for (y, x) in np.ndindex(self.m_opt.shape):
             self.m_opt[y, x] = [[1, 0], [0, 1]]
@@ -111,4 +112,5 @@ class Algorithm:
                         window_correlation = self.window_correlation(processed_pre, processed_post, [y, x], window_length)
                         self.store_opt_params(y, x, window_correlation, Mw, Tw)
 
+        self.c_mean.append(self.mean_correlation(scale))
         self.run(scale + 1)

@@ -17,3 +17,5 @@ def apply(image, psf_filter):  # assume the filter is a P*P array where P is a o
 
     for (y, x) in np.ndindex(image.shape):
         output[y, x] = (imagePadded[y: y + psf_filter.shape[0] - 1, x: x + psf_filter.shape[1] - 1] * psf_filter).sum()
+
+    return output
