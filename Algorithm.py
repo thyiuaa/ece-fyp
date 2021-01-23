@@ -120,3 +120,38 @@ class Algorithm:
 
             self.c_mean.append(self.mean_correlation(scale))
             self.run(scale + 1)
+
+#---------------- ALGORITHM 2
+
+    def run(self, scale):  # Algorithm 2 in p.440 is used
+        while scale < 4:    # Assume there are only 3 scale
+            window_length = self.pre_img.shape[0] / pow(2, scale)
+            if window_length < self.MIN_WINDOW_LENGTH: return
+
+            # Find out c_mean before affine warping
+            window_correlation = self.window_correlation(self.pre_img, self.post_img, [y, x], window_length)
+            self.store_opt_params(y, x, window_correlation, Mw, Tw)
+            self.c_mean.append(self.mean_correlation(scale))
+
+            # initialization
+            if scale == 1:
+                m_scale = self.get_range(self.m_start, self.m_end, self.m_step, np.array([[1, 0], [0, 1]]))
+                t_scale = self.get_range(self.t_start, self.t_end, self.t_step, np.array([0, 0]))
+            else:
+                m_scale = self.get_range(self.m_start, self.m_end, self.m_step, self.m_opt[y, x])
+                t_scale = self.get_range(self.t_start, self.t_end, self.t_step, self.t_opt[y, x])
+
+            # do affine warping and coupled filtering
+            for Mw in m_scale:
+                processed_pre = cf.apply(self.pre_img, aw.affine_warping(self.psf, Mw, np.array([0, 0])))
+                for Tw in t_scale:
+                    processed_post = cf.apply(aw.affine_warping(self.post_img, Mw, Tw), self.psf)
+
+                    # y, x are the coordinates of the top left element of that window in the image
+                    for y in range(0, window_length, self.pre_img.shape[0]):
+                        for x in range(0, window_length, self.pre_img.shape[1]):
+                            window_correlation = self.window_correlation(processed_pre, processed_post, [y, x], window_length)
+                            self.store_opt_params(y, x, window_correlation, Mw, Tw)
+                            
+            self.c_mean.append(self.mean_correlation(scale))
+            self.run(scale + 1)
