@@ -264,7 +264,7 @@ class Ui_SecDialog(object):
 
     def retranslateUi(self, SecDialog):
         _translate = QtCore.QCoreApplication.translate
-        SecDialog.setWindowTitle(_translate("SecDialog", "Dialog"))
+        SecDialog.setWindowTitle(_translate("SecDialog", "Result Window"))
         self.label_5.setText(_translate("SecDialog", "After Coupled Filtering Method:"))
         self.pushButton_2.setText(_translate("SecDialog", "Output B-mode images"))
         self.label_2.setText(_translate("SecDialog", "Correlation Coefficient"))

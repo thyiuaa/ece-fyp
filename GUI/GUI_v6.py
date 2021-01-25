@@ -206,12 +206,14 @@ class Ui_MainWindow(object):
 
 class Ui_SecDialog(object):
     def setupUi(self, SecDialog):
+        correlation_B4_AWarping = 0.1234    #Testing only
+        correlation_after_CFiltering = 0.5678   #Testing only
         SecDialog.setObjectName("SecDialog")
         SecDialog.resize(660, 449)
         self.B4_AWarping = QtWidgets.QTextBrowser(SecDialog)
         self.B4_AWarping.setGeometry(QtCore.QRect(390, 170, 101, 28))
         self.B4_AWarping.setObjectName("B4_AWarping")
-        #self.B4_AWarping.setText(str(correlation_B4_AWarping)) #Variable Name Display data
+        self.B4_AWarping.setText(str(correlation_B4_AWarping)) #Variable Name Display data
         font = QtGui.QFont()
         font.setPointSize(11)
         # self.After_AWarping = QtWidgets.QTextBrowser(SecDialog)
@@ -235,10 +237,10 @@ class Ui_SecDialog(object):
         self.After_CFiltering = QtWidgets.QTextBrowser(SecDialog)
         self.After_CFiltering.setGeometry(QtCore.QRect(390, 220, 101, 28))
         self.After_CFiltering.setObjectName("After_CFiltering")
-        #self.After_CFiltering.setText(str(correlation_after_CFiltering)) #Variable Name Display data
-        font = QtGui.QFont()
-        font.setPointSize(11)
-        self.After_CFiltering.setFont(font)
+        self.After_CFiltering.setText(str(correlation_after_CFiltering)) #Variable Name Display data
+        # font = QtGui.QFont()
+        # font.setPointSize(11)
+        # self.After_CFiltering.setFont(font)
         self.pushButton_2 = QtWidgets.QPushButton(SecDialog)
         self.pushButton_2.setGeometry(QtCore.QRect(250, 360, 171, 32))
         self.pushButton_2.setObjectName("pushButton_2")
@@ -271,7 +273,7 @@ class Ui_SecDialog(object):
 
     def retranslateUi(self, SecDialog):
         _translate = QtCore.QCoreApplication.translate
-        SecDialog.setWindowTitle(_translate("SecDialog", "Dialog"))
+        SecDialog.setWindowTitle(_translate("SecDialog", "Result Window"))
         #self.label_4.setText(_translate("SecDialog", "After Affine Warping Procedure:"))
         self.label_5.setText(_translate("SecDialog", "After Coupled Filtering Method:"))
         self.pushButton_2.setText(_translate("SecDialog", "Output B-mode images"))
