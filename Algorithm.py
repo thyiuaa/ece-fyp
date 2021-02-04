@@ -37,14 +37,17 @@ class Algorithm:
         self.t_opt = np.empty(self.pre_img.shape)
         self.c_opt = np.full(self.pre_img.shape, -2)
         # self.c_total = np.empty(self.pre_img.shape)
-        self.MIN_WINDOW_LENGTH = 2
+        self.MIN_WINDOW_LENGTH = 1
         self.c_mean_pre = []
         self.c_mean = []
         self.c_mean_affine = []
+        self.M_intp = []
+        self.T_intp = []
+        self.C_intp = 0
 
         for (y, x) in np.ndindex(self.m_opt.shape):
             self.m_opt[y, x] = [[1, 0], [0, 1]]
-        for (y, x) in np.ndindex(self.m_opt.shape):
+        for (y, x) in np.ndindex(self.t_opt.shape):
             self.t_opt[y, x] = [[0, 0]]
 
     def window_correlation(self, X1, X2, start, length):
@@ -86,18 +89,26 @@ class Algorithm:
 
     def store_opt_params(self, y, x, window_correlation, Mw, Tw):
         if window_correlation < self.c_opt[y, x]: return
-        self.m_opt[y, x] = Mw
-        self.t_opt[y, x] = Tw
-        self.c_opt[y, x] = window_correlation
+        self.m_opt[y, x] = self.M_intp = Mw
+        self.t_opt[y, x] = self.T_intp = Tw
+        self.c_opt[y, x] = self.C_intp = window_correlation
 
-    def init_algo_param(self, scale, y, x):
-        if scale == 1:
-            m_scale = self.get_range(self.m_start, self.m_end, self.m_step, np.array([[1, 0], [0, 1]]))
-            t_scale = self.get_range(self.t_start, self.t_end, self.t_step, np.array([0, 0]))
-        else:
-            m_scale = self.get_range(self.m_start, self.m_end, self.m_step, self.m_opt[y, x])
-            t_scale = self.get_range(self.t_start, self.t_end, self.t_step, self.t_opt[y, x])
+    def opt_params_scale(self, window_length):
+        for y in range(0, self.pre_img.shape[0], window_length):
+            for x in range(0, self.pre_img.shape[1], window_length):        
+                if self.c_opt[y, x] > self.C_intp: 
+                    self.M_intp= self.m_opt[y, x]
+                    self.T_intp= self.t_opt[y, x]
+
+    def init_algo_param(self):
+        m_scale = self.get_range(self.m_start, self.m_end, self.m_step, np.array([[1, 0], [0, 1]]))
+        t_scale = self.get_range(self.t_start, self.t_end, self.t_step, np.array([0, 0]))
         return m_scale, t_scale
+
+    def get_algo_param(self):
+        m_scale = self.get_range(self.m_start, self.m_end, self.m_step, self.M_intp)
+        t_scale = self.get_range(self.t_start, self.t_end, self.t_step, self.T_intp)
+        return m_scale, t_scale        
 
     def get_pre_correlation(self, window_length):
         c_pre = np.full(self.pre_img.shape, -2)
@@ -142,7 +153,11 @@ class Algorithm:
 
         # do affine warping and coupled filtering
         c_affine = np.empty(self.pre_img.shape)
-        m_scale, t_scale = self.init_algo_param(scale, y, x)
+        if scale ==0:
+            m_scale, t_scale = self.init_algo_param()
+        else:
+             m_scale, t_scale = self.get_algo_param()
+
         for Mw in m_scale:
             processed_pre = cf.apply(self.pre_img, aw.affine_warping(self.psf, Mw, np.array([0, 0])))
             for Tw in t_scale:
@@ -157,6 +172,7 @@ class Algorithm:
                         window_correlation = self.window_correlation(processed_pre, processed_post, [y, x], window_length)
                         self.store_opt_params(y, x, window_correlation, Mw, Tw)
 
+        opt_params_scale(window_length)
         self.c_mean_pre.append(self.mean_correlation(scale, self.get_pre_correlation(window_length)))
         self.c_mean_affine.append(self.mean_correlation(scale, c_affine))
         self.c_mean.append(self.mean_correlation(scale, self.c_opt))

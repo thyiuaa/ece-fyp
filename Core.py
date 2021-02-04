@@ -160,7 +160,7 @@ class Ui_MainWindow(object):
 
     def start(self):
         core_algo = algo.Algorithm(pre_path, post_path, m_range, m_step, t_range, t_step)
-        core_algo.run(1)
+        core_algo.run(0)
         
     def Clickme(self):
         M_Interval= self.M_Step.text()
