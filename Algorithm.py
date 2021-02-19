@@ -2,6 +2,7 @@ import numpy as np
 
 import AffineWarping as aw
 import CoupledFiltering as cf
+import Window as win
 
 
 class Algorithm:
@@ -22,134 +23,156 @@ class Algorithm:
     """
 
     def __init__(self, pre_path, post_path, m_range_str, m_step_str, t_range_str, t_step_str):
-        m_range = np.reshape(np.fromstring(m_range_str, dtype=float, sep=' '), [2, 2])
-        t_range = np.fromstring(t_range_str, dtype=float, sep=' ')
+        # images
         self.pre_img = np.loadtxt(pre_path)
         self.post_img = np.loadtxt(post_path)
+        # motion parameters
+        m_range = np.reshape(np.fromstring(m_range_str, dtype=float, sep=' '), [2, 2])
+        t_range = np.fromstring(t_range_str, dtype=float, sep=' ')
         self.m_start = np.array(-m_range) / 2
         self.m_end = np.array(m_range) / 2
         self.m_step = np.reshape(np.fromstring(m_step_str, dtype=float, sep=' '), [2, 2])
         self.t_start = np.array(-t_range) // 2
         self.t_end = np.array(t_range) // 2
         self.t_step = np.fromstring(t_step_str, dtype=float, sep=' ')
-        self.psf = cf.psf()
-        self.m_opt = np.empty(self.pre_img.shape)
-        self.t_opt = np.empty(self.pre_img.shape)
-        self.c_opt = np.full(self.pre_img.shape, -2)
-        # self.c_total = np.empty(self.pre_img.shape)
-        self.MIN_WINDOW_LENGTH = 1
-        self.c_mean_pre = []
-        self.c_mean = []
-        self.c_mean_affine = []
+        # interpolation result
         self.M_intp = []
         self.T_intp = []
         self.C_intp = 0
+        # window specification
+        self.num_win = [3, 4]
+        self.win_sep = [0, 0]  # TODO :: enter correct value
+        self.windows = np.array(self.num_win)
+        self.WIN_LENGTH = 37
+        self.WIN_HEIGHT = 25
+        self.MIN_WIN_VERTICAL_SEPARATION = 1
+        self.MIN_WIN_HORIZONTAL_SEPARATION = 4
+        # correlation coefficient
+        self.c_mean_pre = []
+        self.c_mean = []
+        self.c_mean_affine = []
+        # PSF
+        self.psf = cf.psf()
 
-        for (y, x) in np.ndindex(self.m_opt.shape):
-            self.m_opt[y, x] = [[1, 0], [0, 1]]
-        for (y, x) in np.ndindex(self.t_opt.shape):
-            self.t_opt[y, x] = [[0, 0]]
-
-    def window_correlation(self, X1, X2, start, length):
-        X1 = X1[start[0]:start[0] + length, start[1]:start[1] + length]
-        X2 = X2[start[0]:start[0] + length, start[1]:start[1] + length]
+    def window_correlation(self, X1, X2, start):
+        X1 = X1[start[0]:start[0] + self.WIN_HEIGHT, start[1]:start[1] + self.WIN_LENGTH]
+        X2 = X2[start[0]:start[0] + self.WIN_HEIGHT, start[1]:start[1] + self.WIN_LENGTH]
         sum_of_multiple = np.sum(X1 * X2)
         sqrt_of_multiple = np.sqrt(np.sum(np.square(X1)) * np.sum(np.square(X2)))
         return sum_of_multiple / sqrt_of_multiple
 
-    def mean_correlation(self, scale, c):
-        window_length = self.pre_img.shape[0] // pow(2, scale)
+    def mean_correlation(self):
         total_correlation = 0
-        number_windows = pow(4, scale)
-        for y in range(0, self.pre_img.shape[0], window_length):
-            for x in range(0, self.pre_img.shape[1], window_length):
-                total_correlation += c[y, x]
-        return total_correlation / number_windows
+        for y in range(0, self.num_win[0]):
+            for x in range(0, self.num_win[1]):
+                total_correlation += self.windows[y, x].get_opt_c()
+        return total_correlation / (self.num_win[0] * self.num_win[1])
 
-    def get_range(self, start, end, step, offset):
+    def get_range(self, type, offset):
         """
-        :param start: m_start or t_start
-        :param end: m_end or t_end
-        :param step: m_step or t_step
+        :param type: 'M' or 'T'
         :param offset: offset to both start and end
         :return: a list of param will be used in searching for a window
         """
+        if type == 'M':
+            start = self.m_start
+            end = self.m_end
+            step = self.m_step
+        else:
+            start = self.t_start
+            end = self.t_end
+            step = self.t_step
         output = []
-        arr = start + offset
         lower_bound = start + offset
         upper_bound = end + offset
-        lower_req = np.greater_equal(arr, lower_bound)
-        upper_req = np.less_equal(arr, upper_bound)
-        while lower_req.all() and upper_req.all():
-            output.append(arr)
-            arr += step
-            lower_req = np.greater_equal(arr, lower_bound)
-            upper_req = np.less_equal(arr, upper_bound)
+        for mxx in range(lower_bound[0, 0], upper_bound[0, 0] + step[0, 0], step[0, 0]):
+            for mxy in range(lower_bound[0, 1], upper_bound[0, 1] + step[0, 1], step[0, 1]):
+                for myx in range(lower_bound[1, 0], upper_bound[1, 0] + step[1, 0], step[1, 0]):
+                    myy = -mxx  # equation 22
+                    output.append(np.array([[mxx, mxy], [myx, myy]]))
         return output
 
-    def store_opt_params(self, y, x, window_correlation, Mw, Tw, window_length):
-        if window_correlation < self.c_opt[y, x]: return
-        self.m_opt[y                 , x                 ] = self.M_intp = Mw
-        self.t_opt[y                 , x                 ] = self.T_intp = Tw
-        self.c_opt[y                 , x                 ] = self.C_intp = window_correlation
-        self.m_opt[y+window_length//2, x                 ] = Mw
-        self.t_opt[y+window_length//2, x                 ] = Tw
-        self.c_opt[y+window_length//2, x                 ] = window_correlation
-        self.m_opt[y                 , x+window_length//2] = Mw
-        self.t_opt[y                 , x+window_length//2] = Tw
-        self.c_opt[y                 , x+window_length//2] = window_correlation
-        self.m_opt[y+window_length//2, x+window_length//2] = Mw
-        self.t_opt[y+window_length//2, x+window_length//2] = Tw
-        self.c_opt[y+window_length//2, x+window_length//2] = window_correlation
-
-    def opt_params_scale(self, window_length):
-        for y in range(0, self.pre_img.shape[0], window_length):
-            for x in range(0, self.pre_img.shape[1], window_length):        
-                if self.c_opt[y, x] > self.C_intp: 
-                    self.M_intp= self.m_opt[y, x]
-                    self.T_intp= self.t_opt[y, x]
+    def store_opt_params(self, win_y, win_x, window_correlation, Mw, Tw):
+        if window_correlation < self.windows[win_y, win_x].get_opt_c(): return
+        self.windows[win_y, win_x].set_opt_m(Mw)
+        self.windows[win_y, win_x].set_opt_t(Tw)
+        self.windows[win_y, win_x].set_opt_c(window_correlation)
 
     def init_algo_param(self, scale, m_intp, t_intp):
         if scale == 0:
-            m_scale = self.get_range(self.m_start, self.m_end, self.m_step, np.array([[1, 0], [0, 1]]))
-            t_scale = self.get_range(self.t_start, self.t_end, self.t_step, np.array([0, 0]))
+            m_scale = self.get_range('M', np.array([[1, 0], [0, 1]]))
+            t_scale = self.get_range('T', np.array([0, 0]))
         else:
-            m_scale = self.get_range(self.m_start, self.m_end, self.m_step, m_intp)
-            t_scale = self.get_range(self.t_start, self.t_end, self.t_step, t_intp)
+            m_scale = self.get_range('M', m_intp)
+            t_scale = self.get_range('T', t_intp)
         return m_scale, t_scale
 
-    def get_pre_correlation(self, window_length):
+    def get_pre_correlation(self):
         c_pre = np.full(self.pre_img.shape, -2)
-        for y in range(0, self.pre_img.shape[0], window_length):
-            for x in range(0, self.pre_img.shape[1], window_length):
-                c_pre[y, x] = self.window_correlation(self.pre_img, self.post_img, [y, x], self.pre_img.shape[0])
+        for y in range(0, self.num_win[0]):
+            for x in range(0, self.num_win[1]):
+                c_pre[y, x] = self.window_correlation(self.pre_img, self.post_img, self.windows[y, x].get_coordinates())
         return c_pre
 
+    def update_windows(self):
+        old_num_win = self.num_win
+        self.num_win = self.num_win * 2 - 1
+        self.win_sep //= 2
+        self.windows = np.reshape(self.windows, self.num_win)
+        for y in range(old_num_win[0], 0, -1):
+            for x in range(old_num_win[1], 0, -1):
+                self.windows[y * 2, x * 2] = self.windows[y, x]
+
+    def interpolate(self):
+        for (y, x) in np.ndindex(self.windows.shape):
+            y_t = y % 2
+            x_t = x % 2
+            if y_t == 0 and x_t == 1:
+                y_pos = self.windows[y, x - 1].get_coordinates()[0]
+                x_pos = self.windows[y, x - 1].get_coordinates()[1] + self.win_sep[1]
+                intp_m = (self.windows[y, x - 1].get_opt_m() + self.windows[y, x + 1].get_opt_m()) / 2
+                intp_t = (self.windows[y, x - 1].get_opt_t() + self.windows[y, x + 1].get_opt_t()) / 2
+            elif y_t == 1 and x_t == 0:
+                y_pos = self.windows[y - 1, x].get_coordinates()[0] + self.win_sep[0]
+                x_pos = self.windows[y - 1, x].get_coordinates()[1]
+                intp_m = (self.windows[y - 1, x].get_opt_m() + self.windows[y + 1, x].get_opt_m()) / 2
+                intp_t = (self.windows[y - 1, x].get_opt_t() + self.windows[y + 1, x].get_opt_t()) / 2
+            elif y_t == 1 and x_t == 1:
+                y_pos = self.windows[y - 1, x - 1].get_coordinates()[0] + self.win_sep[0]
+                x_pos = self.windows[y - 1, x - 1].get_coordinates()[1] + self.win_sep[1]
+                intp_m = (self.windows[y - 1, x - 1].get_opt_m() + self.windows[y - 1, x + 1].get_opt_m() + self.windows[y + 1, x - 1].get_opt_m() + self.windows[y + 1, x + 1].get_opt_m()) / 4
+                intp_t = (self.windows[y - 1, x - 1].get_opt_t() + self.windows[y - 1, x + 1].get_opt_t() + self.windows[y + 1, x - 1].get_opt_t() + self.windows[y + 1, x + 1].get_opt_t()) / 4
+            else:
+                continue
+            self.windows[y, x] = win.Window(y_pos, x_pos, intp_m, intp_t)
+
     def run(self, scale):  # Algorithm 1 in p.440 is used
-        window_length = self.pre_img.shape[0] // pow(2, scale)
-        if window_length < self.MIN_WINDOW_LENGTH: return
-        # or you can say: if scale > MAX_SCALE: return
+        if self.win_sep[0] // 2 < self.MIN_WIN_VERTICAL_SEPARATION: return
+        if self.win_sep[1] // 2 < self.MIN_WIN_HORIZONTAL_SEPARATION: return
+        if scale > 0:
+            self.update_windows()
+            self.interpolate()
 
         # y, x are the coordinates of the top left element of that window in the image
-        c_affine = np.full(self.pre_img.shape, -2)
-        for y in range(0, self.pre_img.shape[0], window_length):
-            for x in range(0, self.pre_img.shape[1], window_length):
+        # c_affine = np.full(self.pre_img.shape, -2)
+        for y in range(0, self.num_win[0]):
+            for x in range(0, self.num_win[1]):
                 # do affine warping and coupled filtering
-                m_scale, t_scale = self.init_algo_param(scale, self.m_opt[y, x], self.t_opt[y, x])
+                m_scale, t_scale = self.init_algo_param(scale, self.windows[y, x].get_opt_m(), self.windows[y, x].get_opt_t())
                 for Mw in m_scale:
                     processed_pre = cf.apply(self.pre_img, aw.affine_warping(self.psf, Mw, np.array([0, 0])))
                     for Tw in t_scale:
                         affine_post = aw.affine_warping(self.post_img, Mw, Tw)
                         processed_post = cf.apply(affine_post, self.psf)
-                        temp_c_affine = self.window_correlation(self.pre_img, affine_post, [y, x], self.pre_img.shape[0])
-                        if c_affine[y, x] < temp_c_affine:
-                            c_affine[y, x] = temp_c_affine
-                        window_correlation = self.window_correlation(processed_pre, processed_post, [y, x], window_length)
+                        # temp_c_affine = self.window_correlation(self.pre_img, affine_post, [y, x], self.pre_img.shape[0])
+                        # if c_affine[y, x] < temp_c_affine:
+                        #     c_affine[y, x] = temp_c_affine
+                        window_correlation = self.window_correlation(processed_pre, processed_post, self.windows[y, x].get_coordinates())
                         self.store_opt_params(y, x, window_correlation, Mw, Tw)
 
-        self.c_mean_pre.append(self.mean_correlation(scale, self.get_pre_correlation(window_length)))
-        self.c_mean_affine.append(self.mean_correlation(scale, c_affine))
-        self.c_mean.append(self.mean_correlation(scale, self.c_opt))
+        # self.c_mean_pre.append(self.mean_correlation(scale, self.get_pre_correlation(window_length)))
+        # self.c_mean_affine.append(self.mean_correlation(scale, c_affine))
+        self.c_mean.append(self.mean_correlation())
         self.run(scale + 1)
 
     # ---------------- ALGORITHM 2
