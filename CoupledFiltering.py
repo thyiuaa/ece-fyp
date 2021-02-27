@@ -1,26 +1,28 @@
+import math
+
 import numpy as np
-import math 
-
-def psf(x,y):
-    # TODO:: model the filter which is the point spread function  H(X)
-    # 1. The PSF size is determined by the sigma and voxel size. It is much smaller than the image.
-    # 2. It is easier to use Gaussian-weighted cosine function. (Coupled filtering #1 p.437, formula 7)
-    s_x= 0.6/2.35
-    s_y= 1.6/2.35
-    freq= 3.9
-    cos_function= math.cos(2*math.pi*freq*x)
-    psf_model= math.exp((-1/2)*((x^2)/(s_x^2)+(y^2)/(s_y^2)))*cos_function
-    return psf_model
 
 
-def apply(image, psf_filter):  # assume the filter is a P*P array where P is a odd number
-    psf_filter = np.fliplr(np.flipud(psf_filter))
-    padding = int(psf_filter.shape[0] // 2)
-    imagePadded = np.zeros([image.shape[0] + 2 * padding, image.shape[1] + 2 * padding])
-    imagePadded[padding: imagePadded.shape[0] - padding, padding: imagePadded.shape[1] - padding] = image
-    output = np.zeros(image.shape)
-
-    for (y, x) in np.ndindex(image.shape):
-        output[y, x] = (imagePadded[y: y + psf_filter.shape[0] - 1, x: x + psf_filter.shape[1] - 1] * psf_filter).sum()
-
+def psf():
+    s_x = (0.6 / 2.35)  # TODO:: 0.6*20? (p.442)
+    s_y = (1.6 / 2.35)  # TODO:: 1.6*5?
+    freq = 3.9  # ref #33 p.406
+    output = np.empty([s_y, s_x])
+    for y in range(int(-s_y // 2), int(s_y // 2)):  # TODO:: remove int() if possible
+        for x in range(int(-s_x // 2), int(s_x // 2)):
+            cos_function = math.cos(2 * math.pi * freq * x)
+            output[y + s_y // 2, x + s_x // 2] = math.exp(-0.5 * ((x * x) / s_x * s_x + (y * y) / s_y * s_y)) * cos_function
     return output
+
+
+def apply(image, psf_filter):  # do convolution and take the center part, same as https://octave.sourceforge.io/octave/function/conv2.html with shape="same"
+    start_y = psf_filter.shape[0] // 2
+    start_x = psf_filter.shape[1] // 2
+    result = np.zeros(image.shape)
+    for j in range(start_y, start_y + result.shape[0]):
+        for i in range(start_x, start_x + result.shape[1]):
+            for b in range(0, image.shape[0]):
+                for a in range(0, image.shape[1]):
+                    if (-1 < i - a < psf_filter.shape[1]) and (-1 < j - b < psf_filter.shape[0]):
+                        result[j - start_y, i - start_x] += image[b, a] * psf_filter[j - b, i - a]
+    return result
