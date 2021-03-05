@@ -11,8 +11,7 @@ import CoupledFiltering
 
 
 def affine_warping_test(X, M00, M01, M10, M11, T0, T1, result):
-    result.write(
-        "After affine transform (" + str(M00) + "," + str(M01) + "," + str(M10) + "," + str(M11) + ") + (" + str(T0) + "," + str(T1) + "):\n")
+    result.write("After affine transform (" + str(M00) + "," + str(M01) + "," + str(M10) + "," + str(M11) + ") + (" + str(T0) + "," + str(T1) + "):\n")
     result.write(str(AffineWarping.affine_warping(X, np.array([[M00, M01], [M10, M11]]), np.array([T0, T1]))))
     result.write("\n\n")
 

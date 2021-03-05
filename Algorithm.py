@@ -42,7 +42,7 @@ class Algorithm:
         # window specification
         self.num_win = [3, 4]
         self.win_sep = [64, 256]  # https://puu.sh/HkCG0/25fc8419b2.png
-        self.windows = np.array(self.num_win)
+        self.windows = np.empty(self.num_win)
         self.WIN_LENGTH = 37
         self.WIN_HEIGHT = 25
         self.MIN_WIN_VERTICAL_SEPARATION = 1
@@ -81,6 +81,12 @@ class Algorithm:
         self.windows[win_y, win_x].set_opt_t(Tw)
         self.windows[win_y, win_x].set_opt_c(window_correlation)
 
+    def init_windows(self):
+        start_pos = [-5, -11]
+        for y in range(0, self.num_win[1]):
+            for x in range(0, self.num_win[0]):
+                self.windows[y, x] = win.Window(start_pos[0]*y, start_pos[1]*x)
+
     def update_windows(self):
         # enlarge windows
         old_num_win = self.num_win
@@ -117,6 +123,12 @@ class Algorithm:
                 continue
             self.windows[y, x] = win.Window(y_pos, x_pos, intp_m, intp_t)  # will only create interpolate result
 
+    def reduce_range(self):
+        self.m_start /= 2
+        self.m_end /= 2
+        self.t_start /= 2
+        self.t_end /= 2
+
     def window_correlation(self, image1, image2, start):
         image1 = image1[start[0]:start[0] + self.WIN_HEIGHT, start[1]:start[1] + self.WIN_LENGTH]
         image2 = image2[start[0]:start[0] + self.WIN_HEIGHT, start[1]:start[1] + self.WIN_LENGTH]
@@ -143,13 +155,17 @@ class Algorithm:
         if self.win_sep[1] // 2 < self.MIN_WIN_HORIZONTAL_SEPARATION: return
 
         if scale == 0:
-            self.init_windows()  # TODO:: implement init_windows()
+            self.init_windows()
+            range_start = 0  # process every windows
+            range_step = 1
         else:
             self.update_windows()
             self.interpolate()
+            range_start = 1  # process only new windows
+            range_step = 2
 
-        for y in range(0, self.num_win[0]):
-            for x in range(0, self.num_win[1]):
+        for y in range(range_start, self.num_win[0], range_step):
+            for x in range(range_start, self.num_win[1], range_step):
                 m_scale, t_scale = self.init_window_search_space(self.windows[y, x].get_intp_m(), self.windows[y, x].get_intp_t())
                 for Mw in m_scale:
                     processed_pre = cf.apply(self.pre_img, aw.affine_warping(self.psf, Mw, np.array([0, 0])))
@@ -160,4 +176,5 @@ class Algorithm:
                         self.store_opt_params(y, x, window_correlation, Mw, Tw)
 
         self.c_mean.append(self.mean_correlation())
+        self.reduce_range()
         self.run(scale + 1)
