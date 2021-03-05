@@ -137,7 +137,6 @@ class Algorithm:
         self.m_end = np.array(self.m_range) / 2
         self.t_start = np.array(-self.t_range) // 2
         self.t_end = np.array(self.t_range) // 2
-        self.c_mean = []
 
     def run(self, algorithm):  # Algorithm 1 in p.440 is used
         scale = 0
