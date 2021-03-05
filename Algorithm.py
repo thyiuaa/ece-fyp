@@ -43,8 +43,6 @@ class Algorithm:
         self.WIN_HEIGHT = 25
         self.MIN_WIN_VERTICAL_SEPARATION = 1
         self.MIN_WIN_HORIZONTAL_SEPARATION = 4
-        # correlation coefficient
-        self.c_mean = []
         # PSF
         self.psf = cf.psf()
 
@@ -117,8 +115,8 @@ class Algorithm:
     def reduce_range(self):
         self.m_start /= 2
         self.m_end /= 2
-        self.t_start /= 2
-        self.t_end /= 2
+        self.t_start //= 2
+        self.t_end //= 2
 
     def slice_image(self, pre_img, post_img, window):
         window_pos = [max(0, i) for i in window.get_coordinates()]  # map negative coordinate to 0
@@ -130,13 +128,6 @@ class Algorithm:
         sum_of_multiple = np.sum(image1 * image2)
         sqrt_of_multiple = np.sqrt(np.sum(np.square(image1)) * np.sum(np.square(image2)))
         return sum_of_multiple / sqrt_of_multiple
-
-    def mean_correlation(self):
-        total_correlation = 0
-        for y in range(0, self.num_win[0]):
-            for x in range(0, self.num_win[1]):
-                total_correlation += self.windows[y, x].get_opt_c()
-        return total_correlation / (self.num_win[0] * self.num_win[1])
 
     def reset(self):
         self.num_win = [3, 4]
@@ -150,6 +141,10 @@ class Algorithm:
 
     def run(self, algorithm):  # Algorithm 1 in p.440 is used
         scale = 0
+        # for algo 2 use
+        Mw = self.search_space('M', self.m_start, self.m_end, self.m_step, np.array([[1, 0], [0, 1]]))
+        Tw = self.search_space('T', self.t_start, self.t_end, self.t_step, np.array([0, 0]))
+
         while self.win_sep[0] // 2 >= self.MIN_WIN_VERTICAL_SEPARATION and self.win_sep[1] // 2 >= self.MIN_WIN_HORIZONTAL_SEPARATION:
             if scale == 0:
                 self.init_windows()
@@ -174,8 +169,6 @@ class Algorithm:
                                 window_correlation = self.correlation(processed_pre, processed_post)
                                 self.store_opt_params(y, x, window_correlation, M, T)
             elif algorithm == 2:
-                Mw = self.search_space('M', self.m_start, self.m_end, self.m_step, np.array([[1, 0], [0, 1]]))
-                Tw = self.search_space('T', self.t_start, self.t_end, self.t_step, np.array([0, 0]))
                 for M in Mw:
                     processed_pre = cf.apply(self.pre_img, aw.affine_warping(self.psf, M, np.array([0, 0])))
                     for T in Tw:
@@ -186,7 +179,6 @@ class Algorithm:
                                 window_correlation = self.correlation(sliced_pre, sliced_post)
                                 self.store_opt_params(y, x, window_correlation, M, T)
 
-            self.c_mean.append(self.mean_correlation())
             self.reduce_range()
             scale += 1
 
