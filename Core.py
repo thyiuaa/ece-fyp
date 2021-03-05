@@ -63,20 +63,20 @@ class Core:
                 output[y, x] = 1 + self.algo.windows[y, x].get_opt_t()[0]
         return output
 
-    def save_axial_strain(self):
-        save_data_to_file(self.get_axial_strain(), "axial_strain.dat")
+    def save_axial_strain(self, filename):
+        save_data_to_file(self.get_axial_strain(), filename)
 
-    def save_lateral_strain(self):
-        save_data_to_file(self.get_lateral_strain(), "lateral_strain.dat")
+    def save_lateral_strain(self, filename):
+        save_data_to_file(self.get_lateral_strain(), filename)
 
-    def save_axial_shear(self):
-        save_data_to_file(self.get_axial_shear(), "axial_shear.dat")
+    def save_axial_shear(self, filename):
+        save_data_to_file(self.get_axial_shear(), filename)
 
-    def save_lateral_shear(self):
-        save_data_to_file(self.get_lateral_shear(), "lateral_shear.dat")
+    def save_lateral_shear(self, filename):
+        save_data_to_file(self.get_lateral_shear(), filename)
 
-    def save_axial_translation(self):
-        save_data_to_file(self.get_axial_translation(), "axial_translation.dat")
+    def save_axial_translation(self, filename):
+        save_data_to_file(self.get_axial_translation(), filename)
 
-    def save_lateral_translation(self):
-        save_data_to_file(self.get_lateral_translation(), "lateral_translation.dat")
+    def save_lateral_translation(self, filename):
+        save_data_to_file(self.get_lateral_translation(), filename)
