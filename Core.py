@@ -19,7 +19,8 @@ class Core:
         self.algo = algo.Algorithm(pre_path, post_path, m_range_str, m_step_str, t_range_str, t_step_str)
 
     def start_algo(self):
-        self.algo.run(0)
+        algorithm = 1  # indicate which algorithm to use
+        self.algo.run(algorithm)
 
     def get_axial_strain(self):  # mxx-1
         output = np.empty(self.algo.windows.shape)

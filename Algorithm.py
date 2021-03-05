@@ -39,7 +39,7 @@ class Algorithm:
         self.num_win = [3, 4]
         self.win_sep = [64, 256]  # https://puu.sh/HkCG0/25fc8419b2.png
         self.windows = np.empty(self.num_win)
-        self.WIN_LENGTH = 37
+        self.WIN_WIDTH = 37
         self.WIN_HEIGHT = 25
         self.MIN_WIN_VERTICAL_SEPARATION = 1
         self.MIN_WIN_HORIZONTAL_SEPARATION = 4
@@ -55,11 +55,11 @@ class Algorithm:
         temp = end + offset
         upper_bound = temp + (1 - (temp / step) % 1) * step  # round up to nearest multiple of step
         if param_type == 'M':
-            for exx in range(lower_bound[0, 0], upper_bound[0, 0] + self.m_step[0, 0], self.m_step[0, 0]):
-                for exy in range(lower_bound[0, 1], upper_bound[0, 1] + self.m_step[0, 1], self.m_step[0, 1]):
-                    for eyx in range(lower_bound[1, 0], upper_bound[1, 0] + self.m_step[1, 0], self.m_step[1, 0]):
-                        eyy = -exx  # equation 22
-                        output.append(np.array([[exx, exy], [eyx, eyy]]))
+            for mxx in range(lower_bound[0, 0], upper_bound[0, 0] + self.m_step[0, 0], self.m_step[0, 0]):
+                for mxy in range(lower_bound[0, 1], upper_bound[0, 1] + self.m_step[0, 1], self.m_step[0, 1]):
+                    for myx in range(lower_bound[1, 0], upper_bound[1, 0] + self.m_step[1, 0], self.m_step[1, 0]):
+                        myy = 2-mxx  # myy = 2-(exx+1) = 1-exx = 1+eyy (equation 22)
+                        output.append(np.array([[mxx, mxy], [myx, myy]]))
         else:
             for tx in range(lower_bound[0], upper_bound[0] + self.t_step[0], self.t_step[0]):
                 for ty in range(lower_bound[1], upper_bound[1] + self.t_step[1], self.t_step[1]):
@@ -76,7 +76,7 @@ class Algorithm:
         start_pos = [-5, -11]
         for y in range(0, self.num_win[1]):
             for x in range(0, self.num_win[0]):
-                self.windows[y, x] = win.Window(start_pos[0]*y, start_pos[1]*x)
+                self.windows[y, x] = win.Window(start_pos[0] * y, start_pos[1] * x)
 
     def update_windows(self):
         # enlarge windows
@@ -120,9 +120,13 @@ class Algorithm:
         self.t_start /= 2
         self.t_end /= 2
 
-    def window_correlation(self, image1, image2, start):
-        image1 = image1[start[0]:start[0] + self.WIN_HEIGHT, start[1]:start[1] + self.WIN_LENGTH]
-        image2 = image2[start[0]:start[0] + self.WIN_HEIGHT, start[1]:start[1] + self.WIN_LENGTH]
+    def slice_image(self, pre_img, post_img, window):
+        window_pos = [max(0, i) for i in window.get_coordinates()]  # map negative coordinate to 0
+        sliced_pre = pre_img[window_pos[0]: window_pos[0] + self.WIN_HEIGHT, window_pos[1]: window_pos[1] + self.WIN_WIDTH]
+        sliced_post = post_img[window_pos[0]: window_pos[0] + self.WIN_HEIGHT, window_pos[1]: window_pos[1] + self.WIN_WIDTH]
+        return [sliced_pre, sliced_post]
+
+    def correlation(self, image1, image2):
         sum_of_multiple = np.sum(image1 * image2)
         sqrt_of_multiple = np.sqrt(np.sum(np.square(image1)) * np.sum(np.square(image2)))
         return sum_of_multiple / sqrt_of_multiple
@@ -133,13 +137,6 @@ class Algorithm:
             for x in range(0, self.num_win[1]):
                 total_correlation += self.windows[y, x].get_opt_c()
         return total_correlation / (self.num_win[0] * self.num_win[1])
-
-    def get_pre_correlation(self):
-        c_pre = np.full(self.pre_img.shape, -2)
-        for y in range(0, self.num_win[0]):
-            for x in range(0, self.num_win[1]):
-                c_pre[y, x] = self.window_correlation(self.pre_img, self.post_img, self.windows[y, x].get_coordinates())
-        return c_pre
 
     def reset(self):
         self.num_win = [3, 4]
@@ -169,14 +166,14 @@ class Algorithm:
                     for x in range(range_start, self.num_win[1], range_step):
                         Mw = self.search_space('M', self.m_start, self.m_end, self.m_step, self.windows[y, x].get_intp_m())
                         Tw = self.search_space('T', self.t_start, self.t_end, self.t_step, self.windows[y, x].get_intp_t())
+                        sliced_pre, sliced_post = self.slice_image(self.pre_img, self.post_img, self.windows[y, x])
                         for M in Mw:
-                            # TODO:: take a slice of the image first?
-                            processed_pre = cf.apply(self.pre_img, aw.affine_warping(self.psf, M, np.array([0, 0])))
+                            processed_pre = cf.apply(sliced_pre, aw.affine_warping(self.psf, M, np.array([0, 0])))
                             for T in Tw:
-                                processed_post = cf.apply(aw.affine_warping(self.post_img, M, T), self.psf)
-                                window_correlation = self.window_correlation(processed_pre, processed_post, self.windows[y, x].get_coordinates())
+                                processed_post = cf.apply(aw.affine_warping(sliced_post, M, T), self.psf)
+                                window_correlation = self.correlation(processed_pre, processed_post)
                                 self.store_opt_params(y, x, window_correlation, M, T)
-            else:
+            elif algorithm == 2:
                 Mw = self.search_space('M', self.m_start, self.m_end, self.m_step, np.array([[1, 0], [0, 1]]))
                 Tw = self.search_space('T', self.t_start, self.t_end, self.t_step, np.array([0, 0]))
                 for M in Mw:
@@ -185,7 +182,8 @@ class Algorithm:
                         processed_post = cf.apply(aw.affine_warping(self.post_img, M, T), self.psf)
                         for y in range(range_start, self.num_win[0], range_step):
                             for x in range(range_start, self.num_win[1], range_step):
-                                window_correlation = self.window_correlation(processed_pre, processed_post, self.windows[y, x].get_coordinates())
+                                sliced_pre, sliced_post = self.slice_image(processed_pre, processed_post, self.windows[y, x])
+                                window_correlation = self.correlation(sliced_pre, sliced_post)
                                 self.store_opt_params(y, x, window_correlation, M, T)
 
             self.c_mean.append(self.mean_correlation())
