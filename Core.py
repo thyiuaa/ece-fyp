@@ -20,6 +20,7 @@ class Core:
 
     def start_algo(self):
         algorithm = 1  # indicate which algorithm to use
+        print(f"==========Start Algorithm {algorithm}==========")
         self.algo.run(algorithm)
 
     def get_axial_strain(self):  # mxx-1
