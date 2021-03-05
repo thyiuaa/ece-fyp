@@ -48,49 +48,31 @@ class Algorithm:
         self.MIN_WIN_VERTICAL_SEPARATION = 1
         self.MIN_WIN_HORIZONTAL_SEPARATION = 4
         # correlation coefficient
-        self.c_mean_pre = []
         self.c_mean = []
-        self.c_mean_affine = []
         # PSF
         self.psf = cf.psf()
 
-    def get_range(self, param_type, offset):
-        """
-        :param param_type: 'M' or 'T'
-        :param offset: offset to both start and end
-        :return: a list of param will be used in searching for a window
-        """
+    def search_space(self, param_type, start, end, step, offset):
+        output = []
+        temp = start + offset
+        lower_bound = temp - ((temp / step) % 1) * step  # round down to nearest multiple of step
+        temp = end + offset
+        upper_bound = temp + (1 - (temp / step) % 1) * step  # round up to nearest multiple of step
         if param_type == 'M':
-            start = self.m_start
-            end = self.m_end
-            step = self.m_step
-            output = []
-            lower_bound = start + offset
-            upper_bound = end + offset
-            for mxx in range(lower_bound[0, 0], upper_bound[0, 0] + step[0, 0], step[0, 0]):
-                for mxy in range(lower_bound[0, 1], upper_bound[0, 1] + step[0, 1], step[0, 1]):
-                    for myx in range(lower_bound[1, 0], upper_bound[1, 0] + step[1, 0], step[1, 0]):
+            for mxx in range(lower_bound[0, 0], upper_bound[0, 0] + self.m_step[0, 0], self.m_step[0, 0]):
+                for mxy in range(lower_bound[0, 1], upper_bound[0, 1] + self.m_step[0, 1], self.m_step[0, 1]):
+                    for myx in range(lower_bound[1, 0], upper_bound[1, 0] + self.m_step[1, 0], self.m_step[1, 0]):
                         myy = -mxx  # equation 22
                         output.append(np.array([[mxx, mxy], [myx, myy]]))
         else:
-            start = self.t_start
-            end = self.t_end
-            step = self.t_step
-            output = []
-            lower_bound = start + offset
-            upper_bound = end + offset
-            for tx in range(lower_bound[0], upper_bound[0] + step[0], step[0]):
-                for ty in range(lower_bound[1], upper_bound[1] + step[1], step[1]):
+            for tx in range(lower_bound[0], upper_bound[0] + self.t_step[0], self.t_step[0]):
+                for ty in range(lower_bound[1], upper_bound[1] + self.t_step[1], self.t_step[1]):
                     output.append(np.array([tx, ty]))
         return output
 
-    def init_algo_param(self, scale, m_intp, t_intp):
-        if scale == 0:
-            m_scale = self.get_range('M', np.array([[1, 0], [0, 1]]))
-            t_scale = self.get_range('T', np.array([0, 0]))
-        else:
-            m_scale = self.get_range('M', m_intp)
-            t_scale = self.get_range('T', t_intp)
+    def init_window_search_space(self, m_intp, t_intp):
+        m_scale = self.search_space('M', self.m_start, self.m_end, self.m_step, m_intp)
+        t_scale = self.search_space('T', self.t_start, self.t_end, self.t_step, t_intp)
         return m_scale, t_scale
 
     def store_opt_params(self, win_y, win_x, window_correlation, Mw, Tw):
@@ -100,10 +82,10 @@ class Algorithm:
         self.windows[win_y, win_x].set_opt_c(window_correlation)
 
     def update_windows(self):
+        # enlarge windows
         old_num_win = self.num_win
         self.num_win = self.num_win * 2 - 1
         self.win_sep //= 2
-        # enlarge windows
         new_windows = np.empty(self.num_win)
         new_windows[0: old_num_win[0] - 1, 0: old_num_win[1] - 1] = self.windows
         self.windows = new_windows
@@ -166,24 +148,16 @@ class Algorithm:
             self.update_windows()
             self.interpolate()
 
-        # y, x are the coordinates of the top left element of that window in the image
-        # c_affine = np.full(self.pre_img.shape, -2)
         for y in range(0, self.num_win[0]):
             for x in range(0, self.num_win[1]):
-                # do affine warping and coupled filtering
-                m_scale, t_scale = self.init_algo_param(scale, self.windows[y, x].get_opt_m(), self.windows[y, x].get_opt_t())
+                m_scale, t_scale = self.init_window_search_space(self.windows[y, x].get_intp_m(), self.windows[y, x].get_intp_t())
                 for Mw in m_scale:
                     processed_pre = cf.apply(self.pre_img, aw.affine_warping(self.psf, Mw, np.array([0, 0])))
                     for Tw in t_scale:
                         affine_post = aw.affine_warping(self.post_img, Mw, Tw)
                         processed_post = cf.apply(affine_post, self.psf)
-                        # temp_c_affine = self.window_correlation(self.pre_img, affine_post, [y, x], self.pre_img.shape[0])
-                        # if c_affine[y, x] < temp_c_affine:
-                        #     c_affine[y, x] = temp_c_affine
                         window_correlation = self.window_correlation(processed_pre, processed_post, self.windows[y, x].get_coordinates())
                         self.store_opt_params(y, x, window_correlation, Mw, Tw)
 
-        # self.c_mean_pre.append(self.mean_correlation(scale, self.get_pre_correlation(window_length)))
-        # self.c_mean_affine.append(self.mean_correlation(scale, c_affine))
         self.c_mean.append(self.mean_correlation())
         self.run(scale + 1)

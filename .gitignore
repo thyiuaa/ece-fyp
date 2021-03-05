@@ -49,3 +49,6 @@ Thumbs.db
 *.wmv
 
 result.txt
+test/affine_warping_test_result.txt
+test/coupled_filtering_test_result.txt
+test/coupled_filtering_test_result_octave.txt
