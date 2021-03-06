@@ -54,8 +54,12 @@ def run_affine_warping():
 
 
 def run_psf():
-    fig, ax = plt.subplots()
     psf = CoupledFiltering.psf()
+    result = open("psf_test_result.txt", "w")
+    result.write(str(psf))
+    result.close()
+
+    fig, ax = plt.subplots()
     c = ax.pcolormesh(psf)
     ax.set_title('PSF')
     fig.colorbar(c, ax=ax)

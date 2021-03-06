@@ -89,7 +89,7 @@ class Algorithm:
 
     def init_windows(self):
         print("Initiating windows...")
-        start_pos = [-5, -11]
+        start_pos = [36-self.WIN_HEIGHT//2, 116-self.WIN_WIDTH//2]
         for y in range(0, self.num_win[0]):
             for x in range(0, self.num_win[1]):
                 self.windows[y, x] = win.Window(start_pos[0] * y, start_pos[1] * x)
