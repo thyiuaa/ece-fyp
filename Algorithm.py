@@ -56,11 +56,11 @@ class Algorithm:
         counter = 0
         if param_type == 'M':
             mxx = lower_bound[0, 0]
-            while mxx < upper_bound[0, 0] + self.m_step[0, 0]:
+            while mxx < upper_bound[0, 0]:
                 mxy = lower_bound[0, 1]
-                while mxy < upper_bound[0, 1] + self.m_step[0, 1]:
+                while mxy < upper_bound[0, 1]:
                     myx = lower_bound[1, 0]
-                    while myx < upper_bound[1, 0] + self.m_step[1, 0]:
+                    while myx < upper_bound[1, 0]:
                         myy = -mxx + 2  # myy = 2-(exx+1) = 1-exx = 1+eyy (equation 22)
                         output.append(np.array([[mxx, mxy], [myx, myy]]))
                         counter += 1
@@ -69,9 +69,9 @@ class Algorithm:
                 mxx += self.m_step[0, 0]
         else:
             tx = lower_bound[0]
-            while tx < upper_bound[0] + self.t_step[0]:
+            while tx < upper_bound[0]:
                 ty = lower_bound[1]
-                while ty < upper_bound[1] + self.t_step[1]:
+                while ty < upper_bound[1]:
                     output.append(np.array([tx, ty]))
                     ty += self.t_step[1]
                 tx += self.t_step[0]
@@ -79,10 +79,10 @@ class Algorithm:
 
     def store_opt_params(self, win_y, win_x, window_correlation, M, T):
         if window_correlation < self.windows[win_y, win_x].get_opt_c(): return
-        print("Better correlation found!")
-        print("M: [[%1.3f, %1.3f], [%1.3f, %1.3f]]" % (M[0, 0], M[0, 1], M[1, 0], M[1, 1]))
-        print(f"T: [%1.3f, %1.3f]" % (T[0], T[1]))
-        print(f"C: {window_correlation} previous: {self.windows[win_y, win_x].get_opt_c()}")
+        # print("Better correlation found!")
+        # print("M: [[%1.3f, %1.3f], [%1.3f, %1.3f]]" % (M[0, 0], M[0, 1], M[1, 0], M[1, 1]))
+        # print("T: [%1.3f, %1.3f]" % (T[0], T[1]))
+        # print(f"C: {window_correlation} previous: {self.windows[win_y, win_x].get_opt_c()}")
         self.windows[win_y, win_x].set_opt_m(M)
         self.windows[win_y, win_x].set_opt_t(T)
         self.windows[win_y, win_x].set_opt_c(window_correlation)
@@ -161,50 +161,58 @@ class Algorithm:
     def run(self, algorithm):  # Algorithm 1 in p.440 is used
         scale = 0
         total_windows = [0, 4 * 3, 7 * 5, 13 * 9, 25 * 17, 49 * 33, 97 * 65, 193 * 129]
-        print("----------Current scale:  %d----------" % scale)
         # for algo 2 use
         Mw = self.search_space('M', self.m_start, self.m_end, self.m_step, np.array([[1, 0], [0, 1]]))
         Tw = self.search_space('T', self.t_start, self.t_end, self.t_step, np.array([0, 0]))
-
-        counter = 1
+        
         while self.win_sep[0] // 2 >= self.MIN_WIN_VERTICAL_SEPARATION and self.win_sep[1] // 2 >= self.MIN_WIN_HORIZONTAL_SEPARATION:
+            print("----------Current scale:  %d----------" % scale)
             if scale == 0:
                 self.init_windows()
-                range_start = 0  # process every windows
-                range_step = 1
             else:
                 self.update_windows()
                 self.interpolate()
-                range_start = 1  # process only new windows
-                range_step = 2
-
+            total_windows_scale = total_windows[scale + 1] - total_windows[scale]
+            
             if algorithm == 1:
-                total_windows_scale = total_windows[scale + 1] - total_windows[scale]
-                for y in range(range_start, self.num_win[0], range_step):
-                    for x in range(range_start, self.num_win[1], range_step):
-                        print("Processing: %5d / %d windows" % (counter, total_windows_scale))
-                        counter += 1
+                counter_win = 1
+                for y in range(0, self.num_win[0]):
+                    for x in range(0, self.num_win[1]):
+                        if y % 2 == 0 and x % 2 == 0 : continue
+                        print("Processing: %5d / %d windows" % (counter_win, total_windows_scale))
                         Mw = self.search_space('M', self.m_start, self.m_end, self.m_step, self.windows[y, x].get_intp_m())
                         Tw = self.search_space('T', self.t_start, self.t_end, self.t_step, self.windows[y, x].get_intp_t())
                         sliced_pre, sliced_post = self.slice_image(self.pre_img, self.post_img, self.windows[y, x])
+                        total_parma_window = len(Mw) * len(Tw)
+                        counter_param = 0
+                        counter_win += 1
                         for M in Mw:
                             processed_pre = cf.apply(sliced_pre, aw.affine_warping(self.psf, M, np.array([0, 0])))
                             for T in Tw:
+                                if -1/total_parma_window < (counter_param / total_parma_window) % 0.01 < 1/total_parma_window:
+                                    print(" Finished: %4d%s" % (int((counter_param / total_parma_window)*100), "%"))
                                 processed_post = cf.apply(aw.affine_warping(sliced_post, M, T), self.psf)
                                 window_correlation = self.correlation(processed_pre, processed_post)
                                 self.store_opt_params(y, x, window_correlation, M, T)
+                                counter_param += 1
             elif algorithm == 2:
-                print("Processing: %6d / %d pairs of parameter" % (counter, len(Mw) * len(Tw)))
                 for M in Mw:
                     processed_pre = cf.apply(self.pre_img, aw.affine_warping(self.psf, M, np.array([0, 0])))
                     for T in Tw:
-                        counter += 1
                         processed_post = cf.apply(aw.affine_warping(self.post_img, M, T), self.psf)
-                        for y in range(range_start, self.num_win[0], range_step):
-                            for x in range(range_start, self.num_win[1], range_step):
+                        if scale < 5: continue
+                        print("Processing: %6d / %d pairs of parameter" % (counter_param, len(Mw) * len(Tw)))
+                        counter_param += 1
+                        counter_win = 1
+                        for y in range(0, self.num_win[0]):
+                            for x in range(0, self.num_win[1]):
+                                if y % 2 == 0 and x % 2 == 0 : continue
+                                if -1/total_windows_scale < (counter_win / total_windows_scale) % 0.04 < 1/total_windows_scale:
+                                    print(" Finished: %4d%s" % (int((counter_win / total_windows_scale)*100), "%"))
                                 sliced_pre, sliced_post = self.slice_image(processed_pre, processed_post, self.windows[y, x])
                                 window_correlation = self.correlation(sliced_pre, sliced_post)
                                 self.store_opt_params(y, x, window_correlation, M, T)
+                                counter_win += 1
 
             self.reduce_range()
             scale += 1
