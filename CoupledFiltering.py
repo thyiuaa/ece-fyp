@@ -4,8 +4,8 @@ import numpy as np
 
 
 def psf():
-    s_x = 12  # PSF width (p.442)
-    s_y = 8  # PSF height
+    s_x = 12  # PSF width (p.442) should be 0.6mm/2.35= 2.55e-4
+    s_y = 8  # PSF height           should be 1.6mm/2.35= 6.81e-4
     freq = 3.8961  # 2*(3M)/1540/1000 (ref #33 p.406)
     output = np.empty([s_y, s_x])
     for y in range(-s_y // 2, s_y // 2):
