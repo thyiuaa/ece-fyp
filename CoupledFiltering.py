@@ -2,12 +2,13 @@ import math
 
 import numpy as np
 
+
 def psf():
     s_x = 12
     s_y = 12
     width = 100  # PSF width
     height = 100  # PSF height
-    freq = 2*(3e6)/1540/1000 # ref #33 p.406
+    freq = 2 * 3e6 / 1540 / 1000  # ref #33 p.406
     output = np.empty([height, width])
     for y in range(-height // 2, height // 2):
         for x in range(-width // 2, width // 2):
@@ -26,13 +27,12 @@ def apply(image, psf_filter):  # do convolution and take the center part, same a
     #             for a in range(0, image.shape[1]):
     #                 if (-1 < i - a < psf_filter.shape[1]) and (-1 < j - b < psf_filter.shape[0]):
     #                     result[j - start_y, i - start_x] += image[b, a] * psf_filter[j - b, i - a]
-    new_shape = np.array(image.shape)+np.array(psf_filter.shape)-1
+    new_shape = np.array(image.shape) + np.array(psf_filter.shape) - 1
     padded_image = np.zeros(new_shape)
-    padded_psf_filter = np.zeros(new_shape)
-    
     padded_image[0:image.shape[0], 0:image.shape[1]] = image
+    padded_psf_filter = np.zeros(new_shape)
     padded_psf_filter[0:psf_filter.shape[0], 0:psf_filter.shape[1]] = psf_filter
 
-    image_padding = np.intc(np.ceil((np.array(psf_filter.shape)-1)/2))
-    result = np.fft.ifft2(np.fft.fft2(padded_image) * np.fft.fft2(padded_psf_filter))[image_padding[0]:image_padding[0]+image.shape[0], image_padding[1]:image_padding[1]+image.shape[1]]
+    image_padding = np.intc(np.ceil((np.array(psf_filter.shape) - 1) / 2))
+    result = np.fft.ifft2(np.fft.fft2(padded_image) * np.fft.fft2(padded_psf_filter))[image_padding[0]:image_padding[0] + image.shape[0], image_padding[1]:image_padding[1] + image.shape[1]]
     return np.real(result)
