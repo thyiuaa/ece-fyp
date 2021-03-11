@@ -1,7 +1,0 @@
-12-Dec-2020
-https://www.python.org/dev/peps/pep-0484/
-https://stackoverflow.com/questions/7423118/python-list-for-each-access-find-replace-in-built-in-list
-
-14-Dec-2020
-https://stackoverflow.com/questions/56700417/how-to-shift-a-2d-numpy-array-in-python
-https://stackoverflow.com/questions/30019605/set-values-in-numpy-array-to-nan-by-index
