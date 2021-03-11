@@ -179,7 +179,6 @@ class Algorithm:
                 for y in range(0, self.num_win[0]):
                     for x in range(0, self.num_win[1]):
                         if y % 2 == 0 and x % 2 == 0 : continue
-                        print("Processing: %5d / %d windows" % (counter_win, total_windows_scale))
                         Mw = self.search_space('M', self.m_start, self.m_end, self.m_step, self.windows[y, x].get_intp_m())
                         Tw = self.search_space('T', self.t_start, self.t_end, self.t_step, self.windows[y, x].get_intp_t())
                         sliced_pre, sliced_post = self.slice_image(self.pre_img, self.post_img, self.windows[y, x])
@@ -189,8 +188,7 @@ class Algorithm:
                         for M in Mw:
                             processed_pre = cf.apply(sliced_pre, aw.affine_warping(self.psf, M, np.array([0, 0])))
                             for T in Tw:
-                                if -1/total_parma_window < (counter_param / total_parma_window) % 0.01 < 1/total_parma_window:
-                                    print(" Finished: %4d%s" % (int((counter_param / total_parma_window)*100), "%"))
+                                print("Alogorithm 1 Scale %1d: %8d / %d parameters of %5d / %d windows" % (scale, counter_param, total_parma_window, counter_win, total_windows_scale))
                                 processed_post = cf.apply(aw.affine_warping(sliced_post, M, T), self.psf)
                                 window_correlation = self.correlation(processed_pre, processed_post)
                                 self.store_opt_params(y, x, window_correlation, M, T)
@@ -201,14 +199,12 @@ class Algorithm:
                     for T in Tw:
                         processed_post = cf.apply(aw.affine_warping(self.post_img, M, T), self.psf)
                         if scale < 5: continue
-                        print("Processing: %6d / %d pairs of parameter" % (counter_param, len(Mw) * len(Tw)))
                         counter_param += 1
                         counter_win = 1
                         for y in range(0, self.num_win[0]):
                             for x in range(0, self.num_win[1]):
                                 if y % 2 == 0 and x % 2 == 0 : continue
-                                if -1/total_windows_scale < (counter_win / total_windows_scale) % 0.04 < 1/total_windows_scale:
-                                    print(" Finished: %4d%s" % (int((counter_win / total_windows_scale)*100), "%"))
+                                print("Alogorithm 2 Scale %1d: %5d / %d windows of %8d / %d parameters" % (scale, counter_win, total_windows_scale, counter_param, len(Mw) * len(Tw)))
                                 sliced_pre, sliced_post = self.slice_image(processed_pre, processed_post, self.windows[y, x])
                                 window_correlation = self.correlation(sliced_pre, sliced_post)
                                 self.store_opt_params(y, x, window_correlation, M, T)
