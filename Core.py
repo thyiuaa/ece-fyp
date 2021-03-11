@@ -23,6 +23,13 @@ class Core:
         print(f"==========Start Algorithm {algorithm}==========")
         self.algo.run(algorithm)
 
+    def get_correlation(self):
+        output = np.empty(self.algo.windows.shape)
+        for y in range(0, output.shape[1]):
+            for x in range(0, output.shape[0]):
+                output[y, x] = self.algo.windows[y, x].get_opt_c()
+        return output
+
     def get_axial_strain(self):  # mxx-1
         output = np.empty(self.algo.windows.shape)
         for y in range(0, output.shape[1]):
@@ -64,6 +71,9 @@ class Core:
             for x in range(0, output.shape[0]):
                 output[y, x] = 1 + self.algo.windows[y, x].get_opt_t()[0]
         return output
+
+    def save_correlation(self, filename):
+        save_data_to_file(self.get_correlation(), filename)
 
     def save_axial_strain(self, filename):
         save_data_to_file(self.get_axial_strain(), filename)

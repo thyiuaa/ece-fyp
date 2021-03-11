@@ -54,6 +54,7 @@ def run_affine_warping():
 
 
 def run_psf():
+    np.set_printoptions(linewidth=1000)
     psf = CoupledFiltering.psf()
     result = open("psf_test_result.txt", "w")
     result.write(str(psf))
@@ -68,11 +69,13 @@ def run_psf():
 
 
 def run_coupled_filtering():
+    np.set_printoptions(linewidth=1000)
     result = open("coupled_filtering_test_result.txt", "w")
-    # 13x9 array
     test_image = np.loadtxt("test_image.dat")
-    # 8x6 array
     test_filter = np.loadtxt("test_filter.dat")
     result.write(str(CoupledFiltering.apply(test_image, test_filter)))
     result.close()
     # compare this result with the result from running "test_run_coupled_filtering_octave.m" in octave (a open source matlab like software)
+    # a = np.loadtxt("coupled_filtering_test_result_octave.txt")
+    # b = CoupledFiltering.apply(test_image, test_filter)
+    # print(a-b)
