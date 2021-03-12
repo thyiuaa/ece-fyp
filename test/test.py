@@ -59,8 +59,6 @@ def run_psf():
     result = open("psf_test_result.txt", "w")
     result.write(str(psf))
     result.close()
-    y, x = np.mgrid[slice(1, 100 ),
-                slice(1, 100)]
     fig, ax = plt.subplots()
     c = ax.pcolormesh(psf)
     ax.set_title('PSF')

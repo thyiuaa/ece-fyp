@@ -4,7 +4,7 @@ import numpy as np
 
 def psf():
     s_x = 12
-    s_y = 12
+    s_y = 8
     width = 100  # PSF width
     height = 100  # PSF height
     freq = 2*(3e6)/1540/1000 # ref #33 p.406
