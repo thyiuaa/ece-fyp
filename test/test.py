@@ -17,7 +17,9 @@ def affine_warping_test(X, M00, M01, M10, M11, T0, T1, result):
 
 
 def run_affine_warping():
-    result = open("affine_warping_test_result.txt", "w")
+    if not os.path.exists("result"):
+        os.mkdir("result")
+    result = open("result/affine_warping_test_result.txt", "w")
     affine_test_X = np.arange(81).reshape((9, 9))
     result.write("===== START of affine warping test =====\n")
     result.write("Before affine warping:\n")
@@ -55,8 +57,11 @@ def run_affine_warping():
 
 def run_psf():
     np.set_printoptions(linewidth=1000)
+    if not os.path.exists("result"):
+        os.mkdir("result")
+
     psf = CoupledFiltering.psf()
-    result = open("psf_test_result.txt", "w")
+    result = open("result/psf_test_result.txt", "w")
     result.write(str(psf))
     result.close()
     fig, ax = plt.subplots()
@@ -69,7 +74,10 @@ def run_psf():
 
 def run_coupled_filtering():
     np.set_printoptions(linewidth=1000)
-    result = open("coupled_filtering_test_result.txt", "w")
+    if not os.path.exists("result"):
+        os.mkdir("result")
+
+    result = open("result/coupled_filtering_test_result.txt", "w")
     test_image = np.loadtxt("test_image.dat")
     test_filter = np.loadtxt("test_filter.dat")
     result.write(str(CoupledFiltering.apply(test_image, test_filter)))

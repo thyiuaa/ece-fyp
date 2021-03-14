@@ -1,5 +1,6 @@
-import numpy as np
 import concurrent.futures as td
+
+import numpy as np
 import tqdm
 
 import AffineWarping as aw
@@ -31,10 +32,10 @@ class Algorithm:
         # motion parameters
         self.m_range = np.reshape(np.fromstring(m_range_str, dtype=float, sep=' '), [2, 2])
         self.t_range = np.fromstring(t_range_str, dtype=float, sep=' ')
-        self.m_start = np.array(-self.m_range) / 2
+        self.m_start = (np.array(self.m_range) / 2) * -1
         self.m_end = np.array(self.m_range) / 2
         self.m_step = np.reshape(np.fromstring(m_step_str, dtype=float, sep=' '), [2, 2])
-        self.t_start = np.array(-self.t_range) // 2
+        self.t_start = (np.array(self.t_range) // 2) * -1
         self.t_end = np.array(self.t_range) // 2
         self.t_step = np.fromstring(t_step_str, dtype=float, sep=' ')
         # window specification
@@ -160,44 +161,35 @@ class Algorithm:
         self.t_start = np.array(-self.t_range) // 2
         self.t_end = np.array(self.t_range) // 2
 
-    def algo1_non_parallel(self, scale, total_windows_scale):
-        counter_win = 1
+    def algo1_non_parallel(self, scale, progress_bar):
         for y in range(0, self.num_win[0]):
             for x in range(0, self.num_win[1]):
                 if scale != 0 and y % 2 == 0 and x % 2 == 0: continue
                 Mw = self.search_space('M', self.m_start, self.m_end, self.m_step, self.windows[y, x].intp_m)
                 Tw = self.search_space('T', self.t_start, self.t_end, self.t_step, self.windows[y, x].intp_t)
                 sliced_pre, sliced_post = self.slice_image(self.pre_img, self.post_img, self.windows[y, x])
-                total_parma_window = len(Mw) * len(Tw)
-                counter_param = 0
-                counter_win += 1
                 for M in Mw:
                     processed_pre = cf.apply(sliced_pre, aw.affine_warping(self.psf, M, np.array([0, 0])))
                     for T in Tw:
-                        print("Algorithm 1 Scale %1d: %8d / %d parameters of %5d / %d windows" % (scale, counter_param, total_parma_window, counter_win, total_windows_scale))
                         processed_post = cf.apply(aw.affine_warping(sliced_post, M, T), self.psf)
                         window_correlation = self.correlation(processed_pre, processed_post)
                         self.store_opt_params(y, x, window_correlation, M, T)
-                        counter_param += 1
+                        progress_bar.update(1)
 
-    def algo2_non_parallel(self, Mw, Tw, scale, total_windows_scale):
-        counter_param = 0
+    def algo2_non_parallel(self, scale, Mw, Tw, progress_bar):
         for M in Mw:
             processed_pre = cf.apply(self.pre_img, aw.affine_warping(self.psf, M, np.array([0, 0])))
             for T in Tw:
                 processed_post = cf.apply(aw.affine_warping(self.post_img, M, T), self.psf)
-                counter_param += 1
-                counter_win = 1
                 for y in range(0, self.num_win[0]):
                     for x in range(0, self.num_win[1]):
                         if scale != 0 and y % 2 == 0 and x % 2 == 0: continue
-                        print("Algorithm 2 Scale %1d: %5d / %d windows of %8d / %d parameters" % (scale, counter_win, total_windows_scale, counter_param, len(Mw) * len(Tw)))
                         sliced_pre, sliced_post = self.slice_image(processed_pre, processed_post, self.windows[y, x])
                         window_correlation = self.correlation(sliced_pre, sliced_post)
                         self.store_opt_params(y, x, window_correlation, M, T)
-                        counter_win += 1
+                        progress_bar.update(1)
 
-    def algo1_parallel(self, scale, y, x):
+    def algo1_parallel(self, scale, y, x, progress_bar):
         if scale != 0 and y % 2 == 0 and x % 2 == 0: return
         Mw = self.search_space('M', self.m_start, self.m_end, self.m_step, self.windows[y, x].intp_m)
         Tw = self.search_space('T', self.t_start, self.t_end, self.t_step, self.windows[y, x].intp_t)
@@ -208,8 +200,9 @@ class Algorithm:
                 processed_post = cf.apply(aw.affine_warping(sliced_post, M, T), self.psf)
                 window_correlation = self.correlation(processed_pre, processed_post)
                 self.store_opt_params(y, x, window_correlation, M, T)
+                progress_bar.update(1)
 
-    def algo2_parallel(self, scale, Mw, Tw, y, x):
+    def algo2_parallel(self, scale, Mw, Tw, y, x, progress_bar):
         for M in Mw:
             processed_pre = cf.apply(self.pre_img, aw.affine_warping(self.psf, M, np.array([0, 0])))
             for T in Tw:
@@ -218,6 +211,7 @@ class Algorithm:
                 sliced_pre, sliced_post = self.slice_image(processed_pre, processed_post, self.windows[y, x])
                 window_correlation = self.correlation(sliced_pre, sliced_post)
                 self.store_opt_params(y, x, window_correlation, M, T)
+                progress_bar.update(1)
 
     def windows_id(self, scale):
         output = []
@@ -232,50 +226,64 @@ class Algorithm:
                         output.append([y, x])
         return output
 
-    def run(self, algorithm, is_parallel, threads):  # Algorithm 1 in p.440 is used
+    def number_parameter(self, y, x):
+        temp = self.m_start + self.windows[y, x].opt_m
+        lower_bound = temp - ((temp / self.m_step) % 1) * self.m_step  # round down to nearest multiple of step
+        temp = self.m_end + self.windows[y, x].opt_m
+        upper_bound = temp + (1 - (temp / self.m_step) % 1) * self.m_step  # round up to nearest multiple of step
+        temp = (upper_bound - lower_bound) / self.m_step
+        temp[1, 1] = 1
+        total_m = np.round(np.prod(temp))
+
+        temp = self.t_start + self.windows[y, x].opt_t
+        lower_bound = temp - ((temp / self.t_step) % 1) * self.t_step  # round down to nearest multiple of step
+        temp = self.t_end + self.windows[y, x].opt_t
+        upper_bound = temp + (1 - (temp / self.t_step) % 1) * self.t_step  # round up to nearest multiple of step
+        total_t = np.prod((upper_bound - lower_bound) / self.t_step)
+        return total_m * total_t
+
+    def run(self, algorithm, is_parallel, threads):
         scale = 0
-        total_windows = [0, 4 * 3, 7 * 5, 13 * 9, 25 * 17, 49 * 33, 97 * 65, 193 * 129]
         # for algo 2 use
         Mw = self.search_space('M', self.m_start, self.m_end, self.m_step, np.array([[1, 0], [0, 1]]))
         Tw = self.search_space('T', self.t_start, self.t_end, self.t_step, np.array([0, 0]))
 
-        while self.win_sep[0] // 2 >= self.MIN_WIN_VERTICAL_SEPARATION and self.win_sep[1] // 2 >= self.MIN_WIN_HORIZONTAL_SEPARATION:
+        while self.win_sep[0] >= self.MIN_WIN_VERTICAL_SEPARATION and self.win_sep[1] >= self.MIN_WIN_HORIZONTAL_SEPARATION:
             if scale == 0:
                 self.init_windows()
             else:
                 self.update_windows()
                 self.interpolate()
-            total_windows_scale = total_windows[scale + 1] - total_windows[scale]
+            valid_windows = self.windows_id(scale)
 
+            # setting up progress bar
+            total_param = 0
+            for [y, x] in valid_windows:
+                total_param += self.number_parameter(y, x)
+            progress_bar = tqdm.tqdm(total=int(total_param))
+
+            # run algorithm
             if algorithm == 1:
                 if is_parallel:
                     with td.ThreadPoolExecutor(max_workers=threads) as executor:
-                        with tqdm.tqdm(total=total_windows_scale, desc=f"Scale {scale}") as pbar:
-                            futures = []
-                            for [y, x] in self.windows_id(scale):
-                                futures.append(executor.submit(self.algo1_parallel, scale=scale, y=y, x=x))
-                            for _ in td.as_completed(futures):
-                                pbar.update(1)
+                        for [y, x] in self.windows_id(scale):
+                            executor.submit(self.algo1_parallel, scale, y, x, progress_bar)
                 else:
-                    self.algo1_non_parallel(scale, total_windows_scale)
+                    self.algo1_non_parallel(scale, progress_bar)
 
             elif algorithm == 2:
                 if is_parallel:
-                    # TODO:: progress bar for algo 2
                     with td.ThreadPoolExecutor(max_workers=threads) as executor:
-                        futures = []
                         for [y, x] in self.windows_id(scale):
-                            futures.append(executor.submit(self.algo2_parallel, scale=scale, Mw=Mw, Tw=Tw, y=y, x=x))
-                        for future in td.as_completed(futures):
-                            None
+                            executor.submit(self.algo2_parallel, scale, Mw, Tw, y, x)
                 else:
-                    self.algo2_non_parallel(Mw, Tw, scale, total_windows_scale)
+                    self.algo2_non_parallel(scale, Mw, Tw, progress_bar)
 
             else:
                 print("Invalid algorithm ID")
-                return
+                return False
 
             self.reduce_range()
             scale += 1
 
-        return
+        return True
