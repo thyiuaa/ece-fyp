@@ -32,6 +32,6 @@ success = core.start_algo(algorithm, is_parallel, threads)
 
 if success:
     with td.ThreadPoolExecutor(max_workers=threads) as executor:
-        for i in range(14):
+        for i in range(12):
             executor.submit(core.dump_windows_data, i)
 

@@ -10,7 +10,7 @@ class Core:
 
     def start_algo(self, algorithm, is_parallel, threads):
         print(f"Starting Algorithm {algorithm}...")
-        self.algo.run(algorithm, is_parallel, threads)
+        return self.algo.run(algorithm, is_parallel, threads)
 
     def get_correlation(self):
         output = np.empty(self.algo.windows.shape)
@@ -65,42 +65,42 @@ class Core:
         output = np.empty(self.algo.windows.shape)
         for y in range(0, output.shape[0]):
             for x in range(0, output.shape[1]):
-                output[y, x] = 1 + self.algo.windows[y, x].intp_m[0, 0]
+                output[y, x] = self.algo.windows[y, x].intp_m[0, 0]
         return output
 
     def get_intp_mxy(self):
         output = np.empty(self.algo.windows.shape)
         for y in range(0, output.shape[0]):
             for x in range(0, output.shape[1]):
-                output[y, x] = 1 + self.algo.windows[y, x].intp_m[0, 1]
+                output[y, x] = self.algo.windows[y, x].intp_m[0, 1]
         return output
 
     def get_intp_myx(self):
         output = np.empty(self.algo.windows.shape)
         for y in range(0, output.shape[0]):
             for x in range(0, output.shape[1]):
-                output[y, x] = 1 + self.algo.windows[y, x].intp_m[1, 0]
+                output[y, x] = self.algo.windows[y, x].intp_m[1, 0]
         return output
 
     def get_intp_myy(self):
         output = np.empty(self.algo.windows.shape)
         for y in range(0, output.shape[0]):
             for x in range(0, output.shape[1]):
-                output[y, x] = 1 + self.algo.windows[y, x].intp_m[1, 1]
+                output[y, x] = self.algo.windows[y, x].intp_m[1, 1]
         return output
 
     def get_intp_tx(self):
         output = np.empty(self.algo.windows.shape)
         for y in range(0, output.shape[0]):
             for x in range(0, output.shape[1]):
-                output[y, x] = 1 + self.algo.windows[y, x].intp_t[0]
+                output[y, x] = self.algo.windows[y, x].intp_t[0]
         return output
 
     def get_intp_ty(self):
         output = np.empty(self.algo.windows.shape)
         for y in range(0, output.shape[0]):
             for x in range(0, output.shape[1]):
-                output[y, x] = 1 + self.algo.windows[y, x].intp_t[1]
+                output[y, x] = self.algo.windows[y, x].intp_t[1]
         return output
 
     def dump_windows_data(self, i):
@@ -135,17 +135,14 @@ class Core:
             filename = "result/intp_mxy_result.dat"
             np.savetxt(filename, self.get_intp_mxy(), '%.4e', '\t', '\n')
         elif i == 9:
-            filename = "result/intp_mxx_result.dat"
-            np.savetxt(filename, self.get_intp_mxx(), '%.4e', '\t', '\n')
-        elif i == 10:
             filename = "result/intp_myx_result.dat"
             np.savetxt(filename, self.get_intp_myx(), '%.4e', '\t', '\n')
-        elif i == 11:
+        elif i == 10:
             filename = "result/intp_myy_result.dat"
             np.savetxt(filename, self.get_intp_myy(), '%.4e', '\t', '\n')
-        elif i == 12:
+        elif i == 11:
             filename = "result/intp_tx_result.dat"
             np.savetxt(filename, self.get_intp_tx(), '%.4e', '\t', '\n')
-        elif i == 13:
+        elif i == 12:
             filename = "result/intp_ty_result.dat"
             np.savetxt(filename, self.get_intp_ty(), '%.4e', '\t', '\n')
