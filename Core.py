@@ -109,40 +109,40 @@ class Core:
 
         if i == 0:
             filename = "result/correlation_result.dat"
-            np.savetxt(filename, self.get_correlation(), '%.4e', '\t', '\n')
+            np.savetxt(filename, self.get_correlation(), '%.4e', '\t\t', '\n')
         elif i == 1:
             filename = "result/axial_strain_result.dat"
-            np.savetxt(filename, self.get_axial_strain(), '%.4e', '\t', '\n')
+            np.savetxt(filename, self.get_axial_strain(), '%.4e', '\t\t', '\n')
         elif i == 2:
             filename = "result/lateral_strain_result.dat"
-            np.savetxt(filename, self.get_lateral_strain(), '%.4e', '\t', '\n')
+            np.savetxt(filename, self.get_lateral_strain(), '%.4e', '\t\t', '\n')
         elif i == 3:
             filename = "result/axial_shear_result.dat"
-            np.savetxt(filename, self.get_axial_shear(), '%.4e', '\t', '\n')
+            np.savetxt(filename, self.get_axial_shear(), '%.4e', '\t\t', '\n')
         elif i == 4:
             filename = "result/lateral_shear_result.dat"
-            np.savetxt(filename, self.get_lateral_shear(), '%.4e', '\t', '\n')
+            np.savetxt(filename, self.get_lateral_shear(), '%.4e', '\t\t', '\n')
         elif i == 5:
             filename = "result/axial_translation_result.dat"
-            np.savetxt(filename, self.get_axial_translation(), '%.4e', '\t', '\n')
+            np.savetxt(filename, self.get_axial_translation(), '%.4e', '\t\t', '\n')
         elif i == 6:
             filename = "result/lateral_translation_result.dat"
-            np.savetxt(filename, self.get_lateral_translation(), '%.4e', '\t', '\n')
+            np.savetxt(filename, self.get_lateral_translation(), '%.4e', '\t\t', '\n')
         elif i == 7:
             filename = "result/intp_mxx_result.dat"
-            np.savetxt(filename, self.get_intp_mxx(), '%.4e', '\t', '\n')
+            np.savetxt(filename, self.get_intp_mxx(), '%.4e', '\t\t', '\n')
         elif i == 8:
             filename = "result/intp_mxy_result.dat"
-            np.savetxt(filename, self.get_intp_mxy(), '%.4e', '\t', '\n')
+            np.savetxt(filename, self.get_intp_mxy(), '%.4e', '\t\t', '\n')
         elif i == 9:
             filename = "result/intp_myx_result.dat"
-            np.savetxt(filename, self.get_intp_myx(), '%.4e', '\t', '\n')
+            np.savetxt(filename, self.get_intp_myx(), '%.4e', '\t\t', '\n')
         elif i == 10:
             filename = "result/intp_myy_result.dat"
-            np.savetxt(filename, self.get_intp_myy(), '%.4e', '\t', '\n')
+            np.savetxt(filename, self.get_intp_myy(), '%.4e', '\t\t', '\n')
         elif i == 11:
             filename = "result/intp_tx_result.dat"
-            np.savetxt(filename, self.get_intp_tx(), '%.4e', '\t', '\n')
+            np.savetxt(filename, self.get_intp_tx(), '%.4e', '\t\t', '\n')
         elif i == 12:
             filename = "result/intp_ty_result.dat"
-            np.savetxt(filename, self.get_intp_ty(), '%.4e', '\t', '\n')
+            np.savetxt(filename, self.get_intp_ty(), '%.4e', '\t\t', '\n')
