@@ -4,15 +4,15 @@ import numpy as np
 
 
 def psf():
-    s_x = (0.6/2.35)*20
-    s_y = (1.6/2.35)*5
-    width = 12  # PSF width
-    height = 8  # PSF height
-    freq = 2 * 3e6 / 1540 / 1000  # ref #33 p.406
+    s_x = (1.6/2.35)*5
+    s_y = (0.6/2.35)*20
+    width = int(1.6*5*3)  # PSF width
+    height = int(0.6*20*3)  # PSF height
+    freq = 2 * 3e6 / 1540 / 1000 / 20  # ref #33 p.406
     output = np.empty([height, width])
     for y in range(-height // 2, height // 2):
         for x in range(-width // 2, width // 2):
-            cos_function = math.cos(2 * math.pi * freq * x)
+            cos_function = math.cos(2 * math.pi * freq * y)
             output[y + height // 2, x + width // 2] = math.exp(-0.5 * ((x * x) / (s_x * s_x) + (y * y) / (s_y * s_y))) * cos_function
     return output
 

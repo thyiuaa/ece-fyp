@@ -184,20 +184,18 @@ class Algorithm:
         self.t_start = np.array(-self.t_range) // 2
         self.t_end = np.array(self.t_range) // 2
 
-    def algo1_non_parallel(self, scale, progress_bar):
-        for y in range(0, self.num_win[0]):
-            for x in range(0, self.num_win[1]):
-                if scale != 0 and y % 2 == 0 and x % 2 == 0: continue
-                Mw = self.search_space('M', self.m_start, self.m_end, self.m_step, self.windows[y, x].intp_m)
-                Tw = self.search_space('T', self.t_start, self.t_end, self.t_step, self.windows[y, x].intp_t)
-                sliced_pre, sliced_post = self.slice_image(self.pre_img, self.post_img, self.windows[y, x])
-                for M in Mw:
-                    processed_pre = cf.apply(sliced_pre, aw.affine_warping(self.psf, M, np.array([0, 0])))
-                    for T in Tw:
-                        processed_post = cf.apply(aw.affine_warping(sliced_post, M, T), self.psf)
-                        window_correlation = self.correlation(processed_pre, processed_post)
-                        self.store_opt_params(y, x, window_correlation, M, T)
-                        progress_bar.update(1)
+    def algo1_non_parallel(self, valid_windows, progress_bar):
+        for [y, x] in valid_windows:
+            Mw = self.search_space('M', self.m_start, self.m_end, self.m_step, self.windows[y, x].intp_m)
+            Tw = self.search_space('T', self.t_start, self.t_end, self.t_step, self.windows[y, x].intp_t)
+            sliced_pre, sliced_post = self.slice_image(self.pre_img, self.post_img, self.windows[y, x])
+            for M in Mw:
+                processed_pre = cf.apply(sliced_pre, aw.affine_warping(self.psf, M, np.array([0, 0])))
+                for T in Tw:
+                    processed_post = cf.apply(aw.affine_warping(sliced_post, M, T), self.psf)
+                    window_correlation = self.correlation(processed_pre, processed_post)
+                    self.store_opt_params(y, x, window_correlation, M, T)
+                    progress_bar.update(1)
 
     def algo1_parallel_core(self, y, x):
         opt_m = np.array([[-100.1, -100.1], [-100.1, -100.1]])
@@ -227,18 +225,16 @@ class Algorithm:
             self.store_opt_params(data[0], data[1], data[2], data[3], data[4])
         print("\n")
 
-    def algo2_non_parallel(self, scale, Mw, Tw, progress_bar):
+    def algo2_non_parallel(self, valid_windows, Mw, Tw, progress_bar):
         for M in Mw:
             processed_pre = cf.apply(self.pre_img, aw.affine_warping(self.psf, M, np.array([0, 0])))
             for T in Tw:
                 processed_post = cf.apply(aw.affine_warping(self.post_img, M, T), self.psf)
-                for y in range(0, self.num_win[0]):
-                    for x in range(0, self.num_win[1]):
-                        if scale != 0 and y % 2 == 0 and x % 2 == 0: continue
-                        sliced_pre, sliced_post = self.slice_image(processed_pre, processed_post, self.windows[y, x])
-                        window_correlation = self.correlation(sliced_pre, sliced_post)
-                        self.store_opt_params(y, x, window_correlation, M, T)
-                        progress_bar.update(1)
+                for [y, x] in valid_windows:
+                    sliced_pre, sliced_post = self.slice_image(processed_pre, processed_post, self.windows[y, x])
+                    window_correlation = self.correlation(sliced_pre, sliced_post)
+                    self.store_opt_params(y, x, window_correlation, M, T)
+                    progress_bar.update(1)
 
     def algo2_parallel_process_image(self, i, M, T):
         if i == 0:
@@ -270,15 +266,13 @@ class Algorithm:
                 counter += 1
         print("\n")
 
-    def run(self, algorithm, is_parallel, threads, env):
+    def run(self, algorithm, is_parallel, threads, max_scale):
         scale = 0
         # sets of parameters for algo 2 to use
         Mw = self.search_space('M', self.m_start, self.m_end, self.m_step, np.array([[1, 0], [0, 1]]))
         Tw = self.search_space('T', self.t_start, self.t_end, self.t_step, np.array([0, 0]))
 
-        while self.win_sep[0] > self.MIN_WIN_VERTICAL_SEPARATION and self.win_sep[1] > self.MIN_WIN_HORIZONTAL_SEPARATION:
-            if env != "sim":
-                if scale > 2: break
+        while self.win_sep[0] > self.MIN_WIN_VERTICAL_SEPARATION and self.win_sep[1] > self.MIN_WIN_HORIZONTAL_SEPARATION and scale <= max_scale:
             if scale == 0:
                 self.init_windows()
             else:
@@ -299,12 +293,12 @@ class Algorithm:
                 if is_parallel:
                     self.algo1_parallel(scale, valid_windows, threads)
                 else:
-                    self.algo1_non_parallel(scale, progress_bar)
+                    self.algo1_non_parallel(valid_windows, progress_bar)
             elif algorithm == 2:
                 if is_parallel:
                     self.algo2_parallel(scale, valid_windows, threads, Mw, Tw)
                 else:
-                    self.algo2_non_parallel(scale, Mw, Tw, progress_bar)
+                    self.algo2_non_parallel(valid_windows, Mw, Tw, progress_bar)
             else:
                 print("Invalid algorithm ID")
                 return False
