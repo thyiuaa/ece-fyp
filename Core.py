@@ -8,9 +8,9 @@ class Core:
     def __init__(self, pre_path, post_path, m_range_str, m_step_str, t_range_str, t_step_str):
         self.algo = algo.Algorithm(pre_path, post_path, m_range_str, m_step_str, t_range_str, t_step_str)
 
-    def start_algo(self, algorithm, is_parallel, threads):
+    def start_algo(self, algorithm, is_parallel, threads, env):
         print(f"Starting Algorithm {algorithm}...")
-        return self.algo.run(algorithm, is_parallel, threads)
+        return self.algo.run(algorithm, is_parallel, threads, env)
 
     def get_correlation(self):
         output = np.empty(self.algo.windows.shape)

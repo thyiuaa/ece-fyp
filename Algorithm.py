@@ -199,11 +199,10 @@ class Algorithm:
                         self.store_opt_params(y, x, window_correlation, M, T)
                         progress_bar.update(1)
 
-    def algo1_parallel_core(self, scale, y, x):
-        if scale != 0 and y % 2 == 0 and x % 2 == 0: return
-        opt_m = np.array([[-100, -100], [-100, -100]])
+    def algo1_parallel_core(self, y, x):
+        opt_m = np.array([[-100.1, -100.1], [-100.1, -100.1]])
         opt_t = np.array([-100, -100])
-        opt_c = -2
+        opt_c = -2.1
         Mw = self.search_space('M', self.m_start, self.m_end, self.m_step, self.windows[y, x].intp_m)
         Tw = self.search_space('T', self.t_start, self.t_end, self.t_step, self.windows[y, x].intp_t)
         sliced_pre, sliced_post = self.slice_image(self.pre_img, self.post_img, self.windows[y, x])
@@ -219,10 +218,10 @@ class Algorithm:
         return [y, x, opt_c, opt_m, opt_t]
 
     def algo1_parallel(self, scale, valid_windows, threads):
-        print(f"Scale {scale}")
-        print(f"Total tasks: {len(valid_windows)} windows.")
+        print(f">> Scale {scale}")
+        print(f">> Total tasks: {len(valid_windows)} windows.")
         results = Parallel(n_jobs=threads, backend="loky", verbose=100, max_nbytes=None, mmap_mode='w+')(
-            delayed(self.algo1_parallel_core)(scale, y, x) for [y, x] in valid_windows
+            delayed(self.algo1_parallel_core)(y, x) for [y, x] in valid_windows
         )
         for data in results:
             self.store_opt_params(data[0], data[1], data[2], data[3], data[4])
@@ -241,41 +240,45 @@ class Algorithm:
                         self.store_opt_params(y, x, window_correlation, M, T)
                         progress_bar.update(1)
 
-    def algo2_parallel_core(self, scale, Mw, Tw, y, x):
-        opt_m = np.array([[-100, -100], [-100, -100]])
-        opt_t = np.array([-100, -100])
-        opt_c = -2
-        for M in Mw:
-            processed_pre = cf.apply(self.pre_img, aw.affine_warping(self.psf, M, np.array([0, 0])))
-            for T in Tw:
-                processed_post = cf.apply(aw.affine_warping(self.post_img, M, T), self.psf)
-                if scale != 0 and y % 2 == 0 and x % 2 == 0: return
-                sliced_pre, sliced_post = self.slice_image(processed_pre, processed_post, self.windows[y, x])
-                window_correlation = self.correlation(sliced_pre, sliced_post)
-                if window_correlation > self.windows[y, x].opt_c:
-                    opt_m = M
-                    opt_t = T
-                    opt_c = window_correlation
-        return [y, x, opt_c, opt_m, opt_t]
+    def algo2_parallel_process_image(self, i, M, T):
+        if i == 0:
+            return cf.apply(self.pre_img, aw.affine_warping(self.psf, M, np.array([0, 0])))
+        else:
+            return cf.apply(aw.affine_warping(self.post_img, M, T), self.psf)
+
+    def algo2_parallel_core(self, M, T, y, x, processed_pre, processed_post):
+        sliced_pre, sliced_post = self.slice_image(processed_pre, processed_post, self.windows[y, x])
+        window_correlation = self.correlation(sliced_pre, sliced_post)
+        return [y, x, window_correlation, M, T]
 
     def algo2_parallel(self, scale, valid_windows, threads, Mw, Tw):
-        print(f"Scale {scale}")
-        print(f"Total tasks: {len(valid_windows)} windows ({len(Mw)} * {len(Tw)} parameters each).")
-        results = Parallel(n_jobs=threads, backend="loky", verbose=100, max_nbytes=None, mmap_mode='w+')(
-            delayed(self.algo2_parallel)(scale, Mw, Tw, y, x) for [y, x] in valid_windows
-        )
-        for data in results:
-            self.store_opt_params(data[0], data[1], data[2], data[3], data[4])
+        total_param =len(Mw) * len(Tw)
+        counter = 1
+        print(f">> Scale {scale}")
+        print(f">> Total tasks: {total_param} parameter pairs")
+        for M in Mw:
+            for T in Tw:
+                print(f">> Current working: {counter} / {total_param} parameter pair.")
+                processed_image = Parallel(n_jobs=2, backend="loky", verbose=0, max_nbytes=None, mmap_mode='w+')(
+                    delayed(self.algo2_parallel_process_image)(i, M, T) for i in range(2)
+                )
+                results = Parallel(n_jobs=threads, backend="loky", verbose=100, max_nbytes=None, mmap_mode='w+')(
+                    delayed(self.algo2_parallel_core)(M, T, y, x, processed_image[0], processed_image[1]) for [y, x] in valid_windows
+                )
+                for data in results:
+                    self.store_opt_params(data[0], data[1], data[2], data[3], data[4])
+                counter += 1
         print("\n")
 
-    def run(self, algorithm, is_parallel, threads):
+    def run(self, algorithm, is_parallel, threads, env):
         scale = 0
         # sets of parameters for algo 2 to use
         Mw = self.search_space('M', self.m_start, self.m_end, self.m_step, np.array([[1, 0], [0, 1]]))
         Tw = self.search_space('T', self.t_start, self.t_end, self.t_step, np.array([0, 0]))
 
         while self.win_sep[0] > self.MIN_WIN_VERTICAL_SEPARATION and self.win_sep[1] > self.MIN_WIN_HORIZONTAL_SEPARATION:
-            if scale > 1: break
+            if env != "sim":
+                if scale > 2: break
             if scale == 0:
                 self.init_windows()
             else:
@@ -288,7 +291,7 @@ class Algorithm:
                 total_param = 0
                 for [y, x] in valid_windows:
                     total_param += self.total_parameter(y, x)
-                print(f"Estimated progress:")
+                print(f">> Estimated progress:")
                 progress_bar = tqdm.tqdm(total=int(total_param), desc=f"Scale {scale}")
 
             # run algorithm

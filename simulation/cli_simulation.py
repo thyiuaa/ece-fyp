@@ -12,8 +12,8 @@ import Core as c
 pre_img_path = "./2-D_Simulation_Data/rf_2media_0percent_FieldII.dat"
 post_img_path = "./2-D_Simulation_Data/rf_2media_5percent_FieldII.dat"
 
-ENV = "home"
-if ENV == "lab":
+ENV = "test"
+if ENV == "sim":
     m_range = "0.2 0.1 0.1 0.2"
     m_step = "0.002 0.002 0.002 0.002"
     t_range = "30 6"
@@ -26,13 +26,13 @@ else:
 
 core = c.Core(pre_img_path, post_img_path, m_range, m_step, t_range, t_step)
 
-algorithm = 1
+algorithm = 2
 is_parallel = True
 total_cpu_ratio = 0.7
 threads = int(os.cpu_count() * total_cpu_ratio)
 
 if __name__ == "__main__":
-    success = core.start_algo(algorithm, is_parallel, threads)
+    success = core.start_algo(algorithm, is_parallel, threads, ENV)
 
     if success:
         print("Simulation complete!")
