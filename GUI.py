@@ -266,7 +266,7 @@ class Ui_SecDialog(object):
         _translate = QtCore.QCoreApplication.translate
         SecDialog.setWindowTitle(_translate("SecDialog", "Result Window"))
         self.label_5.setText(_translate("SecDialog", "After Coupled Filtering Method:"))
-        self.pushButton_2.setText(_translate("SecDialog", "Output B-mode images"))
+        self.pushButton_2.setText(_translate("SecDialog", "Output elastogram"))
         self.label_2.setText(_translate("SecDialog", "Correlation Coefficient"))
         self.label_3.setText(_translate("SecDialog", "Before Affine Warping Procedure:"))
         self.label.setText(_translate("SecDialog", "Result"))
