@@ -53,5 +53,5 @@ test/affine_warping_test_result.txt
 test/coupled_filtering_test_result.txt
 test/coupled_filtering_test_result_octave.txt
 test/psf_test_result.txt
-simulation/result/*
+# simulation/result/*
 test/result/
