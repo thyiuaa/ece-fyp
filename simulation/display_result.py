@@ -1,10 +1,13 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-axial_shear = np.loadtxt("result/axial_shear_result.dat",delimiter="\t\t")
-lateral_shear = np.loadtxt("result/lateral_shear_result.dat",delimiter="\t\t")
-axial_strain = np.loadtxt("result/axial_strain_result.dat",delimiter="\t\t")
-lateral_strain = np.loadtxt("result/lateral_strain_result.dat",delimiter="\t\t")
+axial_shear = np.loadtxt("result/axial_shear_result.dat")
+lateral_shear = np.loadtxt("result/lateral_shear_result.dat")
+axial_strain = np.loadtxt("result/axial_strain_result.dat")
+lateral_strain = np.loadtxt("result/lateral_strain_result.dat")
+axial_translation = np.loadtxt("result/axial_translation_result.dat")
+lateral_translation = np.loadtxt("result/lateral_translation_result.dat")
+correlation = np.loadtxt("result/correlation_result.dat")
 
 fig1, ax1 = plt.subplots()
 c1 = ax1.pcolormesh(axial_shear)
@@ -29,5 +32,23 @@ c4 = ax4.pcolormesh(lateral_strain)
 ax4.set_title('Lateral Strain')
 fig4.colorbar(c4, ax=ax4)
 fig4.tight_layout()
+
+fig5, ax5 = plt.subplots()
+c5 = ax5.pcolormesh(lateral_translation)
+ax5.set_title('Lateral Translation')
+fig5.colorbar(c5, ax=ax5)
+fig5.tight_layout()
+
+fig6, ax6 = plt.subplots()
+c6 = ax6.pcolormesh(axial_translation)
+ax6.set_title('Axial Translation')
+fig6.colorbar(c6, ax=ax6)
+fig6.tight_layout()
+
+fig7, ax7 = plt.subplots()
+c7 = ax7.pcolormesh(correlation)
+ax7.set_title('Correlation')
+fig7.colorbar(c7, ax=ax7)
+fig7.tight_layout()
 
 plt.show()

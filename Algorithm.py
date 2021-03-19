@@ -49,23 +49,20 @@ class Algorithm:
         self.psf = cf.psf()
 
     def search_space(self, param_type, start, end, step, offset):
-        # print("Getting search space for %s..." % param_type)
         output = []
         temp = start + offset
         lower_bound = temp - ((temp / step) % 1) * step  # round down to nearest multiple of step
         temp = end + offset
         upper_bound = temp + (1 - (temp / step) % 1) * step  # round up to nearest multiple of step
-        counter = 0
         if param_type == 'M':
             mxx = lower_bound[0, 0]
             while mxx < upper_bound[0, 0]:
+                myy = 2 - mxx  # myy = 2-(exx+1) = 1-exx = 1+eyy (equation 22)
                 mxy = lower_bound[0, 1]
                 while mxy < upper_bound[0, 1]:
                     myx = lower_bound[1, 0]
                     while myx < upper_bound[1, 0]:
-                        myy = -mxx + 2  # myy = 2-(exx+1) = 1-exx = 1+eyy (equation 22)
                         output.append(np.array([[mxx, mxy], [myx, myy]]))
-                        counter += 1
                         myx += self.m_step[1, 0]
                     mxy += self.m_step[0, 1]
                 mxx += self.m_step[0, 0]
@@ -91,8 +88,7 @@ class Algorithm:
         self.num_win = self.num_win * 2 - 1
         self.win_sep //= 2
         new_windows = np.empty(self.num_win, dtype=win.Window)
-        new_windows[0: old_num_win[0], 0: old_num_win[1]] = self.windows
-        # reposition inside windows
+        # make room for new windows
         for y in range(old_num_win[0] - 1, -1, -1):
             for x in range(old_num_win[1] - 1, -1, -1):
                 new_windows[y * 2, x * 2] = self.windows[y, x]
@@ -121,11 +117,9 @@ class Algorithm:
                 continue
             self.windows[y, x] = win.Window(y_pos, x_pos, intp_m, intp_t)  # will only create interpolate result
 
-    def slice_image(self, pre_img, post_img, window):
-        # print("Slicing images...")
-        window_pos = [max(0, i) for i in [window.y, window.x]]  # map negative coordinate to 0
-        sliced_pre = pre_img[window_pos[0]: window_pos[0] + self.WIN_HEIGHT, window_pos[1]: window_pos[1] + self.WIN_WIDTH]
-        sliced_post = post_img[window_pos[0]: window_pos[0] + self.WIN_HEIGHT, window_pos[1]: window_pos[1] + self.WIN_WIDTH]
+    def slice_image(self, pre_img, post_img, window):  # CHECKED
+        sliced_pre = pre_img[window.y: window.y + self.WIN_HEIGHT, window.x: window.x + self.WIN_WIDTH]
+        sliced_post = post_img[window.y: window.y + self.WIN_HEIGHT, window.x: window.x + self.WIN_WIDTH]
         return [sliced_pre, sliced_post]
 
     def windows_id(self, scale):
@@ -160,7 +154,7 @@ class Algorithm:
     def correlation(self, image1, image2):
         shape = np.minimum(image1.shape, image2.shape)
         sum_of_multiple = np.sum(image1[0:shape[0], 0:shape[1]] * image2[0:shape[0], 0:shape[1]])
-        sqrt_of_multiple = np.sqrt(np.sum(np.sum(np.square(image1)[0:shape[0], 0:shape[1]])) * np.sum(np.sum(np.square(image2)[0:shape[0], 0:shape[1]])))
+        sqrt_of_multiple = np.sqrt(np.sum(np.square(image1[0:shape[0], 0:shape[1]])) * np.sum(np.square(image2[0:shape[0], 0:shape[1]])))
         return sum_of_multiple / sqrt_of_multiple
 
     def store_opt_params(self, win_y, win_x, window_correlation, M, T):
@@ -209,16 +203,16 @@ class Algorithm:
             for T in Tw:
                 processed_post = cf.apply(aw.affine_warping(sliced_post, M, T), self.psf)
                 window_correlation = self.correlation(processed_pre, processed_post)
-                if window_correlation > self.windows[y, x].opt_c:
+                if window_correlation > opt_c:
+                    opt_c = window_correlation
                     opt_m = M
                     opt_t = T
-                    opt_c = window_correlation
         return [y, x, opt_c, opt_m, opt_t]
 
     def algo1_parallel(self, scale, valid_windows, threads):
         print(f">> Scale {scale}")
         print(f">> Total tasks: {len(valid_windows)} windows.")
-        results = Parallel(n_jobs=threads, backend="loky", verbose=100, max_nbytes=None, mmap_mode='w+')(
+        results = Parallel(n_jobs=threads, backend="loky", verbose=100)(
             delayed(self.algo1_parallel_core)(y, x) for [y, x] in valid_windows
         )
         for data in results:
@@ -248,17 +242,17 @@ class Algorithm:
         return [y, x, window_correlation, M, T]
 
     def algo2_parallel(self, scale, valid_windows, threads, Mw, Tw):
-        total_param =len(Mw) * len(Tw)
+        total_param = len(Mw) * len(Tw)
         counter = 1
         print(f">> Scale {scale}")
         print(f">> Total tasks: {total_param} parameter pairs")
         for M in Mw:
             for T in Tw:
                 print(f">> Current working: {counter} / {total_param} parameter pair.")
-                processed_image = Parallel(n_jobs=2, backend="loky", verbose=0, max_nbytes=None, mmap_mode='w+')(
+                processed_image = Parallel(n_jobs=2, backend="loky", verbose=0)(
                     delayed(self.algo2_parallel_process_image)(i, M, T) for i in range(2)
                 )
-                results = Parallel(n_jobs=threads, backend="loky", verbose=100, max_nbytes=None, mmap_mode='w+')(
+                results = Parallel(n_jobs=threads, backend="loky", verbose=100)(
                     delayed(self.algo2_parallel_core)(M, T, y, x, processed_image[0], processed_image[1]) for [y, x] in valid_windows
                 )
                 for data in results:
