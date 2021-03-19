@@ -146,3 +146,10 @@ class Core:
         elif i == 12:
             filename = "result/intp_ty_result.dat"
             np.savetxt(filename, self.get_intp_ty(), '%.4e')
+
+    def mean_correlation(self, scale, c, img):
+        for y in range(0, img.shape[0], self.algo.WIN_HEIGHT):
+            for x in range(0, img.shape[1], self.algo.WIN_WIDTH):
+                total_correlation += c[y,x]
+        return total_correlation / self.algo.num_win
+
