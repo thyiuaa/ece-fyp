@@ -3,8 +3,9 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import BoundaryNorm
 from matplotlib.ticker import MaxNLocator
 import numpy as np
+import core
 
-def output_graph(): #TODO: add input parameters
+def output_graph(self): #TODO: add input parameters
     # make these smaller to increase the resolution
     # dx, dy = 0.05, 0.05
 
@@ -16,11 +17,11 @@ def output_graph(): #TODO: add input parameters
     # ** Displayed Data **
     #TODO: create a loop to find out the value of each window
     #TODO: store the values into the array
-    correlation = [] -->c_opt
-    axial_strains = [] -->mxx-1
-    lateral_strains = [] -->myy-1
-    axial_shears = [] -->mxy
-    lateral_shears = [] -->myx
+    correlation = self.core.get_correlation()
+    axial_strains = self.core.get_axial_strain()
+    lateral_strains = self.core.get_lateral_strain() 
+    axial_shears = self.core.get_axial_shear() 
+    lateral_shears = self.core.get_lateral_shear() 
 
     # x and y are bounds, so z should be the value *inside* those bounds.
     # Therefore, remove the last value from the z array.
