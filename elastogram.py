@@ -3,36 +3,30 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import BoundaryNorm
 from matplotlib.ticker import MaxNLocator
 import numpy as np
-import core
 
-def output_graph(self): #TODO: add input parameters
+def output_graph(correlation, axial_strains, lateral_strains, axial_shears, lateral_shears): #TODO: add input parameters
     # make these smaller to increase the resolution
-    # dx, dy = 0.05, 0.05
+    dx, dy = 0.05, 0.05
 
     # generate 2 2d grids for the x & y bounds
-    # y, x = np.mgrid[slice(1, 5 + dy, dy), slice(1, 5 + dx, dx)]
+    y, x = np.mgrid[slice(1, 5 + dy, dy), slice(1, 5 + dx, dx)]
 
-    # z = np.sin(x)**10 + np.cos(10 + y*x) * np.cos(x)    
+    z = np.sin(x)**10 + np.cos(10 + y*x) * np.cos(x)    
 
     # ** Displayed Data **
     #TODO: create a loop to find out the value of each window
     #TODO: store the values into the array
-    correlation = self.core.get_correlation()
-    axial_strains = self.core.get_axial_strain()
-    lateral_strains = self.core.get_lateral_strain() 
-    axial_shears = self.core.get_axial_shear() 
-    lateral_shears = self.core.get_lateral_shear() 
 
     # x and y are bounds, so z should be the value *inside* those bounds.
     # Therefore, remove the last value from the z array.
-    #z = z[:-1, :-1]
+    z = z[:-1, :-1]
 
     levels = MaxNLocator(nbins=15).tick_values(z.min(), z.max())
 
     # pick the desired colormap, sensible levels, and define a normalization
     # instance which takes data values and translates those into levels.
     cmap = plt.get_cmap('Spectral')
-    norm = BoundaryNorm(levels, ncolors=cmap.N, clip=True)
+    #norm = BoundaryNorm(levels, ncolors=cmap.N, clip=True)
 
     # contours are *point* based plots, so convert our bound into point
     # centers
