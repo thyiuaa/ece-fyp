@@ -4,13 +4,23 @@
 import sys
 from PyQt5 import QtCore, QtGui, QtWidgets, uic
 from PyQt5.QtWidgets import QToolButton, QMainWindow, QApplication, QFileDialog
-import Algorithm as algo
+import Core
+import elastogram 
+import numpy as np
 
-
-
+correlation_B4= 1
+correlation_after= 1
+correlation = np.empty([193,129])
+axial_strains = np.empty([193,129])
+lateral_strains = np.empty([193,129])
+axial_shears = np.empty([193,129])
+lateral_shears = np.empty([193,129])
+PreFile= "./simulation/2-D_Simulation_Data/rf_2media_0percent_FieldII.dat"
+PostFile= "./simulation/2-D_Simulation_Data/rf_2media_0percent_FieldII.dat"
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
+        self.core = Core.Core("./simulation/2-D_Simulation_Data/rf_2media_0percent_FieldII.dat", "./simulation/2-D_Simulation_Data/rf_2media_0percent_FieldII.dat", "1 0 0 0", "1 0 0 0", "1 1", "1 1")
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(815, 621)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
@@ -159,8 +169,20 @@ class Ui_MainWindow(object):
         self.label_14.setText(_translate("MainWindow", "Range of T:"))
 
     def start(self):
-        core_algo = algo.Algorithm(pre_path, post_path, m_range, m_step, t_range, t_step)
-        core_algo.run(0)
+        global PreFile
+        global PostFile
+        self.core = Core.Core(PreFile, PostFile, self.M_Range.text(), self.M_Step.text(), self.T_Range.text(), self.T_Step.text())
+        self.core.start_algo(1, True, 2, 6)
+        global axial_shears
+        global axial_strains
+        global lateral_shears
+        global lateral_strains
+        global correlation
+        correlation = self.core.get_correlation()
+        axial_strains = self.core.get_axial_strain()
+        lateral_strains = self.core.get_lateral_strain() 
+        axial_shears = self.core.get_axial_shear() 
+        lateral_shears = self.core.get_lateral_shear() 
         
     def Clickme(self):
         M_Interval= self.M_Step.text()
@@ -182,8 +204,26 @@ class Ui_MainWindow(object):
         SecDialog.setModal(True)
         SecDialog.exec()
 
+    def GUI_correlation_B4(self): #NEED CHECK
+        correlation_B4_ = 0
+        for y in range(0, self.core.algo.windows.shape[0]):
+            for x in range(0, self.core.algo.windows.shape[1]):
+                GUI_sliced_pre, GUI_sliced_post = self.core.algo.slice_image(self.core.algo.pre_img, self.core.algo.post_img, self.core.algo.windows[y, x])
+                correlation_B4_ += self.core.algo.correlation(GUI_sliced_pre, GUI_sliced_post)
+        global correlation_B4
+        correlation_B4=  correlation_B4_ / (self.core.algo.num_win[0]*self.core.algo.num_win[1])
+
+    def GUI_correlation_after(self): #NEED CHECK
+        correlation_after_ = 0
+        for y in range(0, self.core.algo.windows.shape[0]):
+            for x in range(0, self.core.algo.windows.shape[1]):
+                correlation_after_ += self.core.algo.windows[y, x].opt_c
+        global correlation_after
+        correlation_after= correlation_after_ / (self.core.algo.num_win[0]*self.core.algo.num_win[1])
+
     def PreBrowse(self):
         try:
+            global PreFile
             PreFile= QFileDialog.getOpenFileName(None, 'Single File', '','*.dat') #change file type
             Path_PreFile= PreFile[0]
             PreFileName= Path_PreFile.split("/")[-1]
@@ -198,6 +238,7 @@ class Ui_MainWindow(object):
 
     def PostBrowse(self):
         try:
+            global PostFile
             PostFile= QFileDialog.getOpenFileName(None, 'Single File', '','*.dat') #change file type
             Path_PostFile= PostFile[0]
             PostFileName= Path_PostFile.split("/")[-1]
@@ -216,7 +257,7 @@ class Ui_SecDialog(object):
         self.B4_AWarping = QtWidgets.QTextBrowser(SecDialog)
         self.B4_AWarping.setGeometry(QtCore.QRect(390, 170, 101, 28))
         self.B4_AWarping.setObjectName("B4_AWarping")
-        #self.B4_AWarping.setText(str(correlation_B4_AWarping)) #Variable Name Display data
+        self.B4_AWarping.setText(str(correlation_B4)) #Variable Name Display data
         font = QtGui.QFont()
         font.setPointSize(11)
         self.label_5 = QtWidgets.QLabel(SecDialog)
@@ -228,7 +269,7 @@ class Ui_SecDialog(object):
         self.After_CFiltering = QtWidgets.QTextBrowser(SecDialog)
         self.After_CFiltering.setGeometry(QtCore.QRect(390, 220, 101, 28))
         self.After_CFiltering.setObjectName("After_CFiltering")
-        #self.After_CFiltering.setText(str(correlation_after_CFiltering)) #Variable Name Display data
+        self.After_CFiltering.setText(str(correlation_after)) #Variable Name Display data
         font = QtGui.QFont()
         font.setPointSize(11)
         self.After_CFiltering.setFont(font)
@@ -238,6 +279,7 @@ class Ui_SecDialog(object):
         font = QtGui.QFont()
         font.setPointSize(10)
         self.pushButton_2.setFont(font)
+        self.pushButton_2.clicked.connect(self.output) #click function
         self.label_2 = QtWidgets.QLabel(SecDialog)
         self.label_2.setGeometry(QtCore.QRect(370, 105, 153, 23))
         font = QtGui.QFont()
@@ -270,6 +312,14 @@ class Ui_SecDialog(object):
         self.label_2.setText(_translate("SecDialog", "Correlation Coefficient"))
         self.label_3.setText(_translate("SecDialog", "Before Affine Warping Procedure:"))
         self.label.setText(_translate("SecDialog", "Result"))
+
+    def output(self):
+        global axial_shears
+        global axial_strains
+        global lateral_shears
+        global lateral_strains
+        global correlation
+        elastogram.output_graph(correlation, axial_strains, lateral_strains, axial_shears, lateral_shears)
         
 def main():
     app = QtWidgets.QApplication(sys.argv)
