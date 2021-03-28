@@ -117,7 +117,7 @@ class Algorithm:
                 continue
             self.windows[y, x] = win.Window(y_pos, x_pos, intp_m, intp_t)  # will only create interpolate result
 
-    def slice_image(self, pre_img, post_img, window):  # CHECKED
+    def slice_image(self, pre_img, post_img, window):
         sliced_pre = pre_img[window.y: window.y + self.WIN_HEIGHT, window.x: window.x + self.WIN_WIDTH]
         sliced_post = post_img[window.y: window.y + self.WIN_HEIGHT, window.x: window.x + self.WIN_WIDTH]
         return [sliced_pre, sliced_post]
@@ -169,27 +169,42 @@ class Algorithm:
         self.t_start //= 2
         self.t_end //= 2
 
-    def reset(self):
-        self.num_win = [4, 3]
-        self.win_sep = [256, 64]
-        self.windows = np.empty(self.num_win)
-        self.m_start = np.array(-self.m_range) / 2
-        self.m_end = np.array(self.m_range) / 2
-        self.t_start = np.array(-self.t_range) // 2
-        self.t_end = np.array(self.t_range) // 2
-
     def algo1_non_parallel(self, valid_windows, progress_bar):
         for [y, x] in valid_windows:
             Mw = self.search_space('M', self.m_start, self.m_end, self.m_step, self.windows[y, x].intp_m)
             Tw = self.search_space('T', self.t_start, self.t_end, self.t_step, self.windows[y, x].intp_t)
-            sliced_pre, sliced_post = self.slice_image(self.pre_img, self.post_img, self.windows[y, x])
+            sliced_pre = self.pre_img[self.windows[y, x].y: self.windows[y, x].y + self.WIN_HEIGHT, self.windows[y, x].x: self.windows[y, x].x + self.WIN_WIDTH]
             for M in Mw:
                 processed_pre = cf.apply(sliced_pre, aw.affine_warping(self.psf, M, np.array([0, 0])))
                 for T in Tw:
-                    processed_post = cf.apply(aw.affine_warping(sliced_post, M, T), self.psf)
+                    transformed_post = aw.affine_warping(self.post_img, M, T, self.windows[y, x], self.WIN_HEIGHT, self.WIN_WIDTH)
+                    processed_post = cf.apply(transformed_post, self.psf)
                     window_correlation = self.correlation(processed_pre, processed_post)
                     self.store_opt_params(y, x, window_correlation, M, T)
                     progress_bar.update(1)
+
+    def algo1_parallel_core_scale_0_processing(self, sliced_pre, M, T, window_y, window_x):
+        transformed_post = aw.affine_warping(self.post_img, M, T, self.windows[window_y, window_x], self.WIN_HEIGHT, self.WIN_WIDTH)
+        processed_pre = cf.apply(sliced_pre, aw.affine_warping(self.psf, M, np.array([0, 0])))
+        processed_post = cf.apply(transformed_post, self.psf)
+        return [self.correlation(processed_pre, processed_post), M, T]
+
+    def algo1_parallel_core_scale_0(self, y, x):
+        opt_m = np.array([[-100.1, -100.1], [-100.1, -100.1]])
+        opt_t = np.array([-100, -100])
+        opt_c = -2.1
+        Mw = self.search_space('M', self.m_start, self.m_end, self.m_step, self.windows[y, x].intp_m)
+        Tw = self.search_space('T', self.t_start, self.t_end, self.t_step, self.windows[y, x].intp_t)
+        sliced_pre = self.pre_img[self.windows[y, x].y: self.windows[y, x].y + self.WIN_HEIGHT, self.windows[y, x].x: self.windows[y, x].x + self.WIN_WIDTH]
+        results = Parallel(n_jobs=5, backend="loky", verbose=100)(
+            delayed(self.algo1_parallel_core_scale_0_processing)(sliced_pre, M, T, y, x) for M in Mw for T in Tw
+        )
+        for result in results:
+            if result[0] > opt_c:
+                opt_c = result[0]
+                opt_m = result[1]
+                opt_t = result[2]
+        return [y, x, opt_c, opt_m, opt_t]
 
     def algo1_parallel_core(self, y, x):
         opt_m = np.array([[-100.1, -100.1], [-100.1, -100.1]])
@@ -197,11 +212,12 @@ class Algorithm:
         opt_c = -2.1
         Mw = self.search_space('M', self.m_start, self.m_end, self.m_step, self.windows[y, x].intp_m)
         Tw = self.search_space('T', self.t_start, self.t_end, self.t_step, self.windows[y, x].intp_t)
-        sliced_pre, sliced_post = self.slice_image(self.pre_img, self.post_img, self.windows[y, x])
+        sliced_pre = self.pre_img[self.windows[y, x].y: self.windows[y, x].y + self.WIN_HEIGHT, self.windows[y, x].x: self.windows[y, x].x + self.WIN_WIDTH]
         for M in Mw:
             processed_pre = cf.apply(sliced_pre, aw.affine_warping(self.psf, M, np.array([0, 0])))
             for T in Tw:
-                processed_post = cf.apply(aw.affine_warping(sliced_post, M, T), self.psf)
+                transformed_post = aw.affine_warping(self.post_img, M, T, self.windows[y, x], self.WIN_HEIGHT, self.WIN_WIDTH)
+                processed_post = cf.apply(transformed_post, self.psf)
                 window_correlation = self.correlation(processed_pre, processed_post)
                 if window_correlation > opt_c:
                     opt_c = window_correlation
@@ -212,8 +228,13 @@ class Algorithm:
     def algo1_parallel(self, scale, valid_windows, threads):
         print(f">> Scale {scale}")
         print(f">> Total tasks: {len(valid_windows)} windows.")
+        if scale == 0:
+            threads = 12
+            func = self.algo1_parallel_core_scale_0
+        else:
+            func = self.algo1_parallel_core
         results = Parallel(n_jobs=threads, backend="loky", verbose=100)(
-            delayed(self.algo1_parallel_core)(y, x) for [y, x] in valid_windows
+            delayed(func)(y, x) for [y, x] in valid_windows
         )
         for data in results:
             self.store_opt_params(data[0], data[1], data[2], data[3], data[4])

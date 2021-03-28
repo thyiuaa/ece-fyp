@@ -55,3 +55,4 @@ test/coupled_filtering_test_result_octave.txt
 test/psf_test_result.txt
 # simulation/result/*
 test/result/
+simulation/result*
