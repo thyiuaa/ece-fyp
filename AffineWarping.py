@@ -1,5 +1,16 @@
 import numpy as np
 
+def new_vertex(vertexs, M, T):
+    min_y = 2000
+    min_x = 2000
+    for vertex in vertexs:
+        a = int(vertex[1] * M[1, 0] + vertex[0] * M[1, 1] - T[1])
+        b = int(vertex[1] * M[0, 0] + vertex[0] * M[0, 1] + T[0])
+        if a < min_y: min_y = a
+        if b < min_x: min_x = b
+
+    return [a, b]
+
 
 def affine_warping(arr, M, T, window = None, height = 0, width = 0):
     """
@@ -15,6 +26,7 @@ def affine_warping(arr, M, T, window = None, height = 0, width = 0):
     d = lateral strain
     """
     if window != None:  # arr should be the whole image
+        new_vertex_y, new_vertex_x = new_vertex([[window.y, window.x], [window.y+height, window.x], [window.y, window.x+width], [window.y+height, window.x+width]], M, T)
         new_height = int(np.round(width * np.abs(M[1, 0]) + height * np.abs(M[1, 1])))
         new_width = int(np.round(width * np.abs(M[0, 0]) + height * np.abs(M[0, 1])))
         new_arr = np.zeros([new_height, new_width])
@@ -22,7 +34,7 @@ def affine_warping(arr, M, T, window = None, height = 0, width = 0):
             for x in range(window.x, window.x+width):
                 new_y = int(x * M[1, 0] + y * M[1, 1] - T[1])  # T[1] < 0: down, > 0: up
                 new_x = int(x * M[0, 0] + y * M[0, 1] + T[0])
-                if new_y < y or new_x < x: continue
+                if not (0 < new_y - new_vertex_y < height or 0 < new_x - new_vertex_x < width): continue
                 new_arr[new_y - y, new_x - x] = arr[new_y, new_x]
     else:
         arr = np.flipud(arr)  # flip the array upside down so that bottom left element is the origin
