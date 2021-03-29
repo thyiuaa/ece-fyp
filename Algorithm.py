@@ -117,9 +117,15 @@ class Algorithm:
                 continue
             self.windows[y, x] = win.Window(y_pos, x_pos, intp_m, intp_t)  # will only create interpolate result
 
-    def slice_image(self, pre_img, post_img, window):
+    def slice_image(self, pre_img, post_img, window, algo = 2):
+        if algo == 1:
+            padding_left = 20
+            padding_top = self.WIN_HEIGHT
+        else:
+            padding_left = 0
+            padding_top = 0
         sliced_pre = pre_img[window.y: window.y + self.WIN_HEIGHT, window.x: window.x + self.WIN_WIDTH]
-        sliced_post = post_img[window.y: window.y + self.WIN_HEIGHT, window.x: window.x + self.WIN_WIDTH]
+        sliced_post = post_img[window.y - padding_top: window.y + self.WIN_HEIGHT + padding_top, window.x - padding_left: window.x + self.WIN_WIDTH + padding_left]
         return [sliced_pre, sliced_post]
 
     def windows_id(self, scale):
@@ -173,20 +179,18 @@ class Algorithm:
         for [y, x] in valid_windows:
             Mw = self.search_space('M', self.m_start, self.m_end, self.m_step, self.windows[y, x].intp_m)
             Tw = self.search_space('T', self.t_start, self.t_end, self.t_step, self.windows[y, x].intp_t)
-            sliced_pre = self.pre_img[self.windows[y, x].y: self.windows[y, x].y + self.WIN_HEIGHT, self.windows[y, x].x: self.windows[y, x].x + self.WIN_WIDTH]
+            sliced_pre, sliced_post = self.slice_image(self.pre_img, self.post_img, self.windows[y, x])
             for M in Mw:
                 processed_pre = cf.apply(sliced_pre, aw.affine_warping(self.psf, M, np.array([0, 0])))
                 for T in Tw:
-                    transformed_post = aw.affine_warping(self.post_img, M, T, self.windows[y, x], self.WIN_HEIGHT, self.WIN_WIDTH)
-                    processed_post = cf.apply(transformed_post, self.psf)
+                    processed_post = cf.apply(sliced_post, self.psf)
                     window_correlation = self.correlation(processed_pre, processed_post)
                     self.store_opt_params(y, x, window_correlation, M, T)
                     progress_bar.update(1)
 
-    def algo1_parallel_core_scale_0_processing(self, sliced_pre, M, T, window_y, window_x):
-        transformed_post = aw.affine_warping(self.post_img, M, T, self.windows[window_y, window_x], self.WIN_HEIGHT, self.WIN_WIDTH)
+    def algo1_parallel_core_scale_0_processing(self, sliced_pre, sliced_post, M, T):
         processed_pre = cf.apply(sliced_pre, aw.affine_warping(self.psf, M, np.array([0, 0])))
-        processed_post = cf.apply(transformed_post, self.psf)
+        processed_post = cf.apply(aw.affine_warping(sliced_post, M, T, self.WIN_HEIGHT, 20, self.WIN_HEIGHT, self.WIN_WIDTH), self.psf)
         return [self.correlation(processed_pre, processed_post), M, T]
 
     def algo1_parallel_core_scale_0(self, y, x):
@@ -195,9 +199,9 @@ class Algorithm:
         opt_c = -2.1
         Mw = self.search_space('M', self.m_start, self.m_end, self.m_step, self.windows[y, x].intp_m)
         Tw = self.search_space('T', self.t_start, self.t_end, self.t_step, self.windows[y, x].intp_t)
-        sliced_pre = self.pre_img[self.windows[y, x].y: self.windows[y, x].y + self.WIN_HEIGHT, self.windows[y, x].x: self.windows[y, x].x + self.WIN_WIDTH]
+        sliced_pre, sliced_post = self.slice_image(self.pre_img, self.post_img, self.windows[y, x], 1)
         results = Parallel(n_jobs=5, backend="loky", verbose=100)(
-            delayed(self.algo1_parallel_core_scale_0_processing)(sliced_pre, M, T, y, x) for M in Mw for T in Tw
+            delayed(self.algo1_parallel_core_scale_0_processing)(sliced_pre, sliced_post, M, T) for M in Mw for T in Tw
         )
         for result in results:
             if result[0] > opt_c:
@@ -212,12 +216,11 @@ class Algorithm:
         opt_c = -2.1
         Mw = self.search_space('M', self.m_start, self.m_end, self.m_step, self.windows[y, x].intp_m)
         Tw = self.search_space('T', self.t_start, self.t_end, self.t_step, self.windows[y, x].intp_t)
-        sliced_pre = self.pre_img[self.windows[y, x].y: self.windows[y, x].y + self.WIN_HEIGHT, self.windows[y, x].x: self.windows[y, x].x + self.WIN_WIDTH]
+        sliced_pre, sliced_post = self.slice_image(self.pre_img, self.post_img, self.windows[y, x], 1)
         for M in Mw:
             processed_pre = cf.apply(sliced_pre, aw.affine_warping(self.psf, M, np.array([0, 0])))
             for T in Tw:
-                transformed_post = aw.affine_warping(self.post_img, M, T, self.windows[y, x], self.WIN_HEIGHT, self.WIN_WIDTH)
-                processed_post = cf.apply(transformed_post, self.psf)
+                processed_post = cf.apply(aw.affine_warping(sliced_post, M, T, self.WIN_HEIGHT, 20, self.WIN_HEIGHT, self.WIN_WIDTH), self.psf)
                 window_correlation = self.correlation(processed_pre, processed_post)
                 if window_correlation > opt_c:
                     opt_c = window_correlation

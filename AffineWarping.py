@@ -12,7 +12,7 @@ def new_vertex(vertexs, M, T):
     return [a, b]
 
 
-def affine_warping(arr, M, T, window = None, height = 0, width = 0):
+def affine_warping(arr, M, T, top_pad = 0, left_pad = 0, height = 0, width = 0):
     """
     :param arr: matrix of original data
     :param M: a 2x2 transformation matrix
@@ -25,33 +25,34 @@ def affine_warping(arr, M, T, window = None, height = 0, width = 0):
     c = lateral shear
     d = lateral strain
     """
-    if window != None:  # arr should be the whole image
-        new_vertex_y, new_vertex_x = new_vertex([[window.y, window.x], [window.y+height, window.x], [window.y, window.x+width], [window.y+height, window.x+width]], M, T)
-        new_height = int(np.round(width * np.abs(M[1, 0]) + height * np.abs(M[1, 1])))
-        new_width = int(np.round(width * np.abs(M[0, 0]) + height * np.abs(M[0, 1])))
-        new_arr = np.zeros([new_height, new_width])
-        for y in range(window.y, window.y+height):
-            for x in range(window.x, window.x+width):
-                new_y = int(x * M[1, 0] + y * M[1, 1] - T[1])  # T[1] < 0: down, > 0: up
-                new_x = int(x * M[0, 0] + y * M[0, 1] + T[0])
-                if not (0 < new_y - new_vertex_y < height or 0 < new_x - new_vertex_x < width): continue
-                new_arr[new_y - y, new_x - x] = arr[new_y, new_x]
-    else:
-        arr = np.flipud(arr)  # flip the array upside down so that bottom left element is the origin
-        new_height = int(np.round(arr.shape[1] * np.abs(M[1, 0]) + arr.shape[0] * np.abs(M[1, 1])))
-        new_width = int(np.round(arr.shape[1] * np.abs(M[0, 0]) + arr.shape[0] * np.abs(M[0, 1])))
-        new_arr = np.zeros([new_height, new_width])
-        for (y, x) in np.ndindex(arr.shape):
-            if M[1, 0] < 0:
-                new_y = (arr.shape[0] - 1) - (x * M[1, 0] + y * M[1, 1] + T[1])
-            else:
-                new_y = (new_arr.shape[0] - 1) - (x * M[1, 0] + y * M[1, 1] + T[1])
+    arr = np.flipud(arr)  # flip the array upside down so that bottom left element is the origin
+    new_arr = np.zeros(arr.shape)
+    for (y, x) in np.ndindex(arr.shape):
+        new_x = x * M[0, 0] + y * M[0, 1] + T[0]
+        new_y = (arr.shape[0] - 1) - (x * M[1, 0] + y * M[1, 1] + T[1])
+        if 0 <= new_y < new_arr.shape[0] and 0 <= new_x < new_arr.shape[1]:
+            new_arr[int(new_y), int(new_x)] = arr[y, x]
 
-            if M[0, 1] < 0:
-                new_x = (arr.shape[1] - 1) - (x * M[0, 0] + y * M[0, 1] + T[0])
-            else:
-                new_x = x * M[0, 0] + y * M[0, 1] + T[0]
-            if 0 <= new_y < new_arr.shape[0] and 0 <= new_x < new_arr.shape[1]:
-                new_arr[int(new_y), int(new_x)] = arr[y, x]
+    if top_pad != 0 or left_pad != 0:
+        if (height <= 0 and width <= 0):
+            print("affine warping height, width missing")
+            return arr
+        return new_arr[top_pad: top_pad + height, left_pad: left_pad + width]
+    # arr = np.flipud(arr)  # flip the array upside down so that bottom left element is the origin
+    # new_height = int(np.round(arr.shape[1] * np.abs(M[1, 0]) + arr.shape[0] * np.abs(M[1, 1])))
+    # new_width = int(np.round(arr.shape[1] * np.abs(M[0, 0]) + arr.shape[0] * np.abs(M[0, 1])))
+    # new_arr = np.zeros([new_height, new_width])
+    # for (y, x) in np.ndindex(arr.shape):
+    #     if M[1, 0] < 0:
+    #         new_y = (arr.shape[0] - 1) - (x * M[1, 0] + y * M[1, 1] + T[1])
+    #     else:
+    #         new_y = (new_arr.shape[0] - 1) - (x * M[1, 0] + y * M[1, 1] + T[1])
+
+    #     if M[0, 1] < 0:
+    #         new_x = (arr.shape[1] - 1) - (x * M[0, 0] + y * M[0, 1] + T[0])
+    #     else:
+    #         new_x = x * M[0, 0] + y * M[0, 1] + T[0]
+    #     if 0 <= new_y < new_arr.shape[0] and 0 <= new_x < new_arr.shape[1]:
+    #         new_arr[int(new_y), int(new_x)] = arr[y, x]
 
     return new_arr
