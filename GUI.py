@@ -40,6 +40,8 @@ class Ui_MainWindow(object):
         self.pushButton_3.setFont(font)
         self.pushButton_3.clicked.connect(self.Clickme) #click function
         self.pushButton_3.clicked.connect(self.start) #click function: start algorithm
+        self.pushButton_3.clicked.connect(self.GUI_correlation_B4) #click function
+        self.pushButton_3.clicked.connect(self.GUI_correlation_after) #click function
         self.label_2 = QtWidgets.QLabel(self.centralwidget)
         self.label_2.setGeometry(QtCore.QRect(140, 80, 211, 21))
         font = QtGui.QFont()
