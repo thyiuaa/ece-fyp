@@ -10,13 +10,17 @@ import numpy as np
 
 correlation_B4= 1
 correlation_after= 1
-correlation = np.empty([193,129])
-axial_strains = np.empty([193,129])
-lateral_strains = np.empty([193,129])
-axial_shears = np.empty([193,129])
-lateral_shears = np.empty([193,129])
-PreFile= "./simulation/2-D_Simulation_Data/rf_2media_0percent_FieldII.dat"
-PostFile= "./simulation/2-D_Simulation_Data/rf_2media_0percent_FieldII.dat"
+height = 193
+width = 129
+correlation = np.empty([height,width])
+axial_strains = np.empty([height,width])
+lateral_strains = np.empty([height,width])
+axial_shears = np.empty([height,width])
+lateral_shears = np.empty([height,width])
+axial_translation = np.empty([height, width])
+lateral_translation = np.empty([height, width])
+Path_PreFile= "./simulation/2-D_Simulation_Data/rf_2media_0percent_FieldII.dat"
+Path_PostFile= "./simulation/2-D_Simulation_Data/rf_2media_0percent_FieldII.dat"
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -39,9 +43,9 @@ class Ui_MainWindow(object):
         font.setPointSize(10)
         self.pushButton_3.setFont(font)
         self.pushButton_3.clicked.connect(self.Clickme) #click function
-        self.pushButton_3.clicked.connect(self.start) #click function: start algorithm
-        self.pushButton_3.clicked.connect(self.GUI_correlation_B4) #click function
-        self.pushButton_3.clicked.connect(self.GUI_correlation_after) #click function
+        # self.pushButton_3.clicked.connect(self.start) #click function: start algorithm
+        # self.pushButton_3.clicked.connect(self.GUI_correlation_B4) #click function
+        # self.pushButton_3.clicked.connect(self.GUI_correlation_after) #click function
         self.label_2 = QtWidgets.QLabel(self.centralwidget)
         self.label_2.setGeometry(QtCore.QRect(140, 80, 211, 21))
         font = QtGui.QFont()
@@ -171,10 +175,16 @@ class Ui_MainWindow(object):
         self.label_14.setText(_translate("MainWindow", "Range of T:"))
 
     def start(self):
-        global PreFile
-        global PostFile
-        self.core = Core.Core(PreFile, PostFile, self.M_Range.text(), self.M_Step.text(), self.T_Range.text(), self.T_Step.text())
-        self.core.start_algo(1, True, 2, 6)
+        global Path_PreFile
+        global Path_PostFile
+        self.core = Core.Core(Path_PreFile, Path_PostFile, self.M_Range.text(), self.M_Step.text(), self.T_Range.text(), self.T_Step.text())
+        algo = 1
+        is_parallel = True
+        threads = 10
+        max_scale = 2
+        self.core.start_algo(algo, is_parallel, threads, max_scale)
+        global axial_translation
+        global lateral_translation
         global axial_shears
         global axial_strains
         global lateral_shears
@@ -182,9 +192,11 @@ class Ui_MainWindow(object):
         global correlation
         correlation = self.core.get_correlation()
         axial_strains = self.core.get_axial_strain()
-        lateral_strains = self.core.get_lateral_strain() 
-        axial_shears = self.core.get_axial_shear() 
-        lateral_shears = self.core.get_lateral_shear() 
+        lateral_strains = self.core.get_lateral_strain()
+        axial_shears = self.core.get_axial_shear()
+        lateral_shears = self.core.get_lateral_shear()
+        axial_translation = self.core.get_axial_translation()
+        lateral_translation = self.core.get_lateral_translation()
         
     def Clickme(self):
         M_Interval= self.M_Step.text()
@@ -198,6 +210,10 @@ class Ui_MainWindow(object):
 
         Range_M= self.M_Range.text()
         print(Range_M) 
+
+        self.start()
+        self.GUI_correlation_B4()
+        self.GUI_correlation_after()
 
         SecDialog = QtWidgets.QDialog()
         ui = Ui_SecDialog()
@@ -213,7 +229,7 @@ class Ui_MainWindow(object):
                 GUI_sliced_pre, GUI_sliced_post = self.core.algo.slice_image(self.core.algo.pre_img, self.core.algo.post_img, self.core.algo.windows[y, x])
                 correlation_B4_ += self.core.algo.correlation(GUI_sliced_pre, GUI_sliced_post)
         global correlation_B4
-        correlation_B4=  correlation_B4_ / (self.core.algo.num_win[0]*self.core.algo.num_win[1])
+        correlation_B4 = correlation_B4_ / (self.core.algo.num_win[0]*self.core.algo.num_win[1])
 
     def GUI_correlation_after(self): #NEED CHECK
         correlation_after_ = 0
@@ -221,7 +237,7 @@ class Ui_MainWindow(object):
             for x in range(0, self.core.algo.windows.shape[1]):
                 correlation_after_ += self.core.algo.windows[y, x].opt_c
         global correlation_after
-        correlation_after= correlation_after_ / (self.core.algo.num_win[0]*self.core.algo.num_win[1])
+        correlation_after = correlation_after_ / (self.core.algo.num_win[0]*self.core.algo.num_win[1])
 
     def PreBrowse(self):
         try:
@@ -240,7 +256,7 @@ class Ui_MainWindow(object):
 
     def PostBrowse(self):
         try:
-            global PostFile
+            global Path_PostFile
             PostFile= QFileDialog.getOpenFileName(None, 'Single File', '','*.dat') #change file type
             Path_PostFile= PostFile[0]
             PostFileName= Path_PostFile.split("/")[-1]
@@ -316,12 +332,14 @@ class Ui_SecDialog(object):
         self.label.setText(_translate("SecDialog", "Result"))
 
     def output(self):
+        global axial_translation
+        global lateral_translation
         global axial_shears
         global axial_strains
         global lateral_shears
         global lateral_strains
         global correlation
-        elastogram.output_graph(correlation, axial_strains, lateral_strains, axial_shears, lateral_shears)
+        elastogram.output_graph(correlation, axial_strains, lateral_strains, axial_shears, lateral_shears, axial_translation, lateral_translation)
         
 def main():
     app = QtWidgets.QApplication(sys.argv)
